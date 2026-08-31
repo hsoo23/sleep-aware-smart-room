@@ -1,0 +1,8 @@
+# Compatibility install for the original submitted prototype.
+# Prefer `pip install -e '.[host,server]'` or the Raspberry Pi extra documented in README.
+opencv-python
+mediapipe
+numpy
+requests
+flask
+pyautogui

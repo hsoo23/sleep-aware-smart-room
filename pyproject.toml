@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sleep-aware-smart-room"
+version = "0.1.0"
+description = "Closed-loop edge-AI drowsiness detection and intention-aware smart-room control research baseline"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.24",
+  "requests>=2.31",
+]
+
+[project.optional-dependencies]
+host = ["opencv-python>=4.8", "mediapipe>=0.10", "pyautogui>=0.9"]
+server = ["flask>=3.0"]
+raspberrypi = ["RPi.GPIO>=0.7"]
+dev = ["pytest>=8.0", "ruff>=0.5"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
