@@ -24,6 +24,10 @@ The research value is the integrated system and quantitative validation, not EAR
 - **Phase 3:** Adaptive EAR, PERCLOS, and head pose planned
 - **Phase 4:** participant-disjoint dataset collection after the baseline is stable
 
+## Integration check
+
+This repository uses pull requests to validate review automation before code changes land.
+
 ## Repository layout
 
 ```text
@@ -104,4 +108,3 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the complete workflow.
 ## Privacy and secrets
 
 Participant data, credentials, email app passwords, and local network details must not be committed. Review [SECURITY.md](SECURITY.md) before data collection.
-
