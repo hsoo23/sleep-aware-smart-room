@@ -26,7 +26,8 @@ flowchart LR
 ## Module boundaries
 
 - `detection`: feature extraction, calibration, temporal classification
-- `control`: intention-aware state transitions and restoration policy
+- `control`: intention-aware state transitions and restoration policy; it emits
+  actions but does not directly access GPIO, HTTP, media, or camera APIs
 - `config`: environment-specific values and experimental parameters
 - `legacy`: original submitted prototype kept as a reproducible reference
 - `data`: consented experiment data; raw data is intentionally ignored by Git
@@ -39,4 +40,3 @@ flowchart LR
 3. Actuate media, light, and/or buzzer.
 4. Observe the user again.
 5. Restore devices or transition policy when the user recovers.
-
