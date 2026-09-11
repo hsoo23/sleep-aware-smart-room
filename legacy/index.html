@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#070b19">
+  <title>GAYEON / HYUNSOO - AI Sleep-Aware Smart Room</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+  <div class="stars" aria-hidden="true"></div>
+
+  <main class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#" aria-label="Gayeon and Hyunsoo home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32"><path d="M21.5 23.3A10.2 10.2 0 0 1 9.1 9.5 10.4 10.4 0 1 0 21.5 23.3Z"/></svg>
+        </span>
+        <span>GAYEON / HYUNSOO</span>
+      </a>
+      <div class="device-status"><span></span> DEVICE ONLINE</div>
+    </header>
+
+    <section class="hero" aria-labelledby="pageTitle">
+      <div class="eyebrow"><span></span> AI SLEEP-AWARE SMART ROOM</div>
+      <h1 id="pageTitle">AI detects your sleep.<br><em>Your room responds.</em></h1>
+      <p class="hero-copy">Our Raspberry Pi-based AI detects drowsiness and sleep,<br class="desktop-only"> then controls media playback and connected smart room devices.</p>
+    </section>
+
+    <section class="mode-picker" aria-labelledby="modeTitle">
+      <div class="section-heading">
+        <h2 id="modeTitle">SELECT YOUR MODE</h2>
+      </div>
+
+      <div class="modes">
+        <button id="sleepBtn" class="mode mode-sleep" type="button" aria-controls="sleepSection" aria-expanded="false">
+          <span class="mode-number">01</span>
+          <span class="mode-icon" aria-hidden="true">
+            <svg viewBox="0 0 64 64"><path d="M43.7 45.9A21.3 21.3 0 0 1 20.3 18a21.6 21.6 0 1 0 23.4 27.9Z"/><path class="spark" d="m44 14 1.4 4.6L50 20l-4.6 1.4L44 26l-1.4-4.6L38 20l4.6-1.4L44 14Z"/></svg>
+          </span>
+          <span class="mode-content">
+            <strong>Sleep Aid</strong>
+            <small>Detects sleep and automatically controls<br>media and smart room devices.</small>
+          </span>
+          <span class="mode-arrow" aria-hidden="true">&#8599;</span>
+        </button>
+
+        <button id="wakeBtn" class="mode mode-wake" type="button" aria-controls="wakeSection" aria-expanded="false">
+          <span class="mode-number">02</span>
+          <span class="mode-icon" aria-hidden="true">
+            <svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="11"/><path d="M32 8v8M32 48v8M8 32h8M48 32h8M15 15l6 6M43 43l6 6M49 15l-6 6M21 43l-6 6"/></svg>
+          </span>
+          <span class="mode-content">
+            <strong>Wake-up</strong>
+            <small>Detects drowsiness and triggers<br>a buzzer to keep you awake.</small>
+          </span>
+          <span class="mode-arrow" aria-hidden="true">&#8599;</span>
+        </button>
+      </div>
+    </section>
+
+    <section id="sleepSection" class="panel hidden" aria-labelledby="sleepTitle">
+      <div class="panel-copy">
+        <span class="panel-label">AI SLEEP-AID CONTROL</span>
+        <h2 id="sleepTitle">Sleep-aware control is ready.</h2>
+        <p>When sleep is detected, AI pauses your media and controls connected smart room devices.</p>
+      </div>
+      <form id="emailForm" class="email-form" novalidate>
+        <label for="emailInput">STATUS NOTIFICATION EMAIL</label>
+        <div class="input-row">
+          <input type="email" id="emailInput" autocomplete="email" placeholder="you@example.com">
+          <button id="sendEmailBtn" type="submit">Enable alerts <span aria-hidden="true">&#8594;</span></button>
+        </div>
+        <p id="sleepMsg" class="message" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section id="wakeSection" class="panel wake-panel hidden" aria-labelledby="wakeTitle">
+      <div class="sun-orbit" aria-hidden="true"><span></span></div>
+      <div class="panel-copy">
+        <span class="panel-label">BUZZER WAKE-UP MODE</span>
+        <h2 id="wakeTitle">Stay-awake detection is active.</h2>
+        <p>When AI detects drowsiness, the Raspberry Pi buzzer sounds immediately to help keep you awake.</p>
+      </div>
+      <div class="ready-badge"><span></span> MODE ACTIVE</div>
+    </section>
+
+    <footer>
+      <p>EMBEDDED AI PROJECT · RASPBERRY PI</p>
+      <p>DETECT SLEEP. CONTROL THE ROOM.</p>
+    </footer>
+  </main>
+
+  <script src="script.js" defer></script>
+</body>
+</html>

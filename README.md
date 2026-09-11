@@ -24,10 +24,6 @@ The research value is the integrated system and quantitative validation, not EAR
 - **Phase 3:** Adaptive EAR, PERCLOS, and head pose planned
 - **Phase 4:** participant-disjoint dataset collection after the baseline is stable
 
-## Integration check
-
-This repository uses pull requests to validate review automation before code changes land.
-
 ## Repository layout
 
 ```text
@@ -36,7 +32,7 @@ This repository uses pull requests to validate review automation before code cha
 │   ├── config.py
 │   ├── detection/          # EAR, adaptive calibration, PERCLOS, temporal state
 │   └── control/            # intention-aware closed-loop policy
-├── legacy/                 # original submitted working prototype
+├── legacy/                 # original submitted working prototype (preserved verbatim)
 ├── config/                 # future versioned non-secret experiment configs
 ├── data/                   # raw/processed contents excluded from Git
 ├── results/                # generated experiment outputs excluded from Git
@@ -74,7 +70,7 @@ Copy `.env.example` to `.env` and set local values. Never commit `.env`.
 
 ## Reproducing the submitted baseline
 
-The original prototype is preserved in `legacy/` during Phase 2. It remains the behavioral reference while functionality is migrated into testable modules.
+The original prototype is preserved in `legacy/` and remains the behavioral reference while functionality is migrated into testable modules. The legacy system requires the original MacBook/Raspberry Pi hardware and software environment; it is not a hardware-free smoke test.
 
 1. Start `legacy/pi_server.py` on Raspberry Pi.
 2. Configure local URLs and launcher path from environment-specific values.
@@ -83,6 +79,17 @@ The original prototype is preserved in `legacy/` during Phase 2. It remains the 
 5. Confirm the full loop: detection -> action -> re-observation -> restoration/transition.
 
 The legacy media controller currently depends on macOS, Google Chrome, AppleScript, and YouTube. Raspberry Pi GPIO functionality requires the physical relay and buzzer setup.
+
+For a hardware-free verification of the migrated decision logic, run:
+
+```bash
+python -m compileall -q src tests
+python -m pytest
+```
+
+The first command checks syntax and imports that do not require optional camera
+or GPIO packages. The second command requires the development extra from the
+Quick start section.
 
 ## Ablation plan
 
