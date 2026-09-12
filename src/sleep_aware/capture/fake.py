@@ -12,7 +12,9 @@ class FakeFrameSource:
     """Return a finite, pre-built sequence of frames."""
 
     def __init__(self, frames: Iterable[Frame]) -> None:
+        """Store frames in the order in which they will be returned."""
         self._frames = deque(frames)
 
     def read(self) -> Frame | None:
+        """Return the next frame, or ``None`` after the sequence is exhausted."""
         return self._frames.popleft() if self._frames else None

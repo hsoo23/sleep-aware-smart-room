@@ -10,6 +10,7 @@ from .camera import CameraSourceError, OpenCVCameraSource
 
 
 def _parser() -> argparse.ArgumentParser:
+    """Build the command-line parser using environment-backed defaults."""
     parser = argparse.ArgumentParser(description="연결된 카메라의 프레임 입력을 확인합니다.")
     parser.add_argument("--camera-index", type=int, default=settings.camera_index)
     parser.add_argument("--width", type=int, default=settings.camera_width)
@@ -19,6 +20,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    """Capture a finite frame sample and report whether the camera is usable."""
     args = _parser().parse_args()
     if args.frames < 1:
         raise SystemExit("--frames는 1 이상이어야 합니다.")

@@ -32,6 +32,7 @@ class CameraClosedError(CameraSourceError):
 
 
 def _load_opencv() -> Any:
+    """Load the optional OpenCV module with an actionable error message."""
     try:
         return importlib.import_module("cv2")
     except ImportError as error:
@@ -56,6 +57,7 @@ class OpenCVCameraSource:
         clock: Callable[[], float] = time.monotonic,
         opencv: Any | None = None,
     ) -> None:
+        """Open a configured camera and apply its requested resolution."""
         self._camera_index = camera_index
         self._clock = clock
         self._sequence = 0
@@ -113,6 +115,7 @@ class OpenCVCameraSource:
         self._capture.release()
 
     def __enter__(self) -> OpenCVCameraSource:
+        """Return this opened source when entering a context manager."""
         return self
 
     def __exit__(
@@ -121,4 +124,5 @@ class OpenCVCameraSource:
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
+        """Release the camera when leaving a context manager."""
         self.close()

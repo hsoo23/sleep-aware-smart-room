@@ -7,10 +7,12 @@ from dataclasses import dataclass
 
 
 def _float(name: str, default: float) -> float:
+    """Read one floating-point setting from the environment."""
     return float(os.getenv(name, default))
 
 
 def _int(name: str, default: int) -> int:
+    """Read one integer setting from the environment."""
     return int(os.getenv(name, default))
 
 
