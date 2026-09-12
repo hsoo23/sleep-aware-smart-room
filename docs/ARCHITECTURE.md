@@ -35,6 +35,8 @@ flowchart LR
   and `EventLogger`
 - `pipeline.runner`: synchronous orchestration only; it owns no camera, MediaPipe,
   network, filesystem, or GPIO implementation
+- `capture`: OpenCV camera adapter and deterministic fake frame source; camera
+  acquisition errors stop the run and the adapter owns `VideoCapture` cleanup
 - `config`: environment-specific values and experimental parameters
 - `legacy`: original submitted prototype kept as a reproducible reference
 - `data`: consented experiment data; raw data is intentionally ignored by Git
