@@ -42,9 +42,12 @@ class TemporalDrowsinessDetector:
             return self._state
 
         self._closed_since = None
+        if self._state is DrowsinessState.NO_FACE:
+            self._open_since = timestamp
+            self._state = DrowsinessState.AWAKE
+            return self._state
         if self._open_since is None:
             self._open_since = timestamp
         if timestamp - self._open_since >= self.recovery_seconds:
             self._state = DrowsinessState.AWAKE
         return self._state
-

@@ -31,6 +31,7 @@ The research value is the integrated system and quantitative validation, not EAR
 ├── src/sleep_aware/
 │   ├── config.py
 │   ├── detection/          # EAR, adaptive calibration, PERCLOS, temporal state
+│   ├── pipeline/           # Face Mesh adapter, contracts, fixed-EAR orchestration
 │   └── control/            # intention-aware closed-loop policy
 ├── legacy/                 # original submitted working prototype (preserved verbatim)
 ├── config/                 # future versioned non-secret experiment configs

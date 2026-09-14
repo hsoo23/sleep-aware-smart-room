@@ -22,9 +22,18 @@ class Settings:
     ear_threshold: float = _float("EAR_THRESHOLD", 0.21)
     drowsy_seconds: float = _float("DROWSY_SECONDS", 2.0)
     recovery_seconds: float = _float("RECOVERY_SECONDS", 0.5)
+    face_mesh_max_num_faces: int = _int("FACE_MESH_MAX_NUM_FACES", 1)
+    face_mesh_refine_landmarks: bool = os.getenv(
+        "FACE_MESH_REFINE_LANDMARKS", "true"
+    ).lower() in {"1", "true", "yes", "on"}
+    face_mesh_min_detection_confidence: float = _float(
+        "FACE_MESH_MIN_DETECTION_CONFIDENCE", 0.5
+    )
+    face_mesh_min_tracking_confidence: float = _float(
+        "FACE_MESH_MIN_TRACKING_CONFIDENCE", 0.5
+    )
     relay_pin: int = _int("RELAY_PIN", 17)
     buzzer_pin: int = _int("BUZZER_PIN", 18)
 
 
 settings = Settings()
-

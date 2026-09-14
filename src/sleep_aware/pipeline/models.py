@@ -28,10 +28,11 @@ class Frame:
 
 @dataclass(frozen=True)
 class EyeLandmarks:
-    """Six ordered landmarks for each eye, or no object when no face is found."""
+    """Face mesh and six ordered landmarks for each eye."""
 
     left_eye: tuple[Point, Point, Point, Point, Point, Point]
     right_eye: tuple[Point, Point, Point, Point, Point, Point]
+    face_landmarks: tuple[Point, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -53,3 +54,7 @@ class PipelineEvent:
     state: DrowsinessState
     actions: tuple[Action, ...]
     action_results: tuple[ActionResult, ...]
+    left_ear: float | None = None
+    right_ear: float | None = None
+    landmark_latency_ms: float = 0.0
+    inference_latency_ms: float = 0.0
