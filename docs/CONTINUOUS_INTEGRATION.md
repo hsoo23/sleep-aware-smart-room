@@ -10,7 +10,9 @@ GitHub Actions runs `.github/workflows/ci.yml` on every pull request, on pushes 
 | Ruff | `ruff check src tests` | Lint rules `E`, `F`, `W`, `I`, `B`, `UP` (pinned in `pyproject.toml`) |
 | pytest (3.10–3.13) | `python -m compileall -q src tests` then `python -m pytest -v` | Unit and mock-integration tests |
 
-Supported Python versions are 3.10, 3.11, 3.12, and 3.13 (`requires-python = ">=3.10"`).
+CI validates Python 3.10, 3.11, 3.12, and 3.13. The package metadata keeps
+`requires-python = ">=3.10"` without an upper bound; newer versions are expected
+to work but are not validated until added to the matrix.
 The runner installs only `pip install -e '.[dev]'`; OpenCV, MediaPipe, PyAutoGUI,
 Flask, and RPi.GPIO are **not** installed. `tests/test_hardware_free_imports.py`
 fails if importing the core package pulls in any of those modules.
