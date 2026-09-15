@@ -91,6 +91,10 @@ The first command checks syntax and imports that do not require optional camera
 or GPIO packages. The second command requires the development extra from the
 Quick start section.
 
+The in-memory device executor and Raspberry Pi HTTP adapter are documented in
+[the Raspberry Pi smoke-test guide](docs/RASPBERRY_PI_SMOKE_TEST.md). Keep local
+mock results separate from physical-device observations.
+
 ## Ablation plan
 
 | Stage | Detector |

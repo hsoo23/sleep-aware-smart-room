@@ -35,6 +35,7 @@ flowchart LR
   and `EventLogger`
 - `pipeline.runner`: synchronous orchestration only; it owns no camera, MediaPipe,
   network, filesystem, or GPIO implementation
+- `adapters`: hardware-free mock and bounded Raspberry Pi HTTP action executors
 - `config`: environment-specific values and experimental parameters
 - `legacy`: original submitted prototype kept as a reproducible reference
 - `data`: consented experiment data; raw data is intentionally ignored by Git
@@ -87,3 +88,8 @@ action result.
   actions, logging the result, and re-observing the user.
 - An executor result for an action other than the requested action is a contract
   violation and raises `ValueError`.
+
+The HTTP executor uses `POST` for state changes, applies the configured timeout,
+and reports status, elapsed time, and a stable error reason without logging URLs
+or response bodies. See [RASPBERRY_PI_SMOKE_TEST.md](RASPBERRY_PI_SMOKE_TEST.md)
+for endpoint and physical-device verification details.

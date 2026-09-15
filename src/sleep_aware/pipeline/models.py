@@ -41,6 +41,9 @@ class ActionResult:
     action: Action
     succeeded: bool
     detail: str | None = None
+    elapsed_ms: float | None = None
+    error_reason: str | None = None
+    status_code: int | None = None
 
 
 @dataclass(frozen=True)

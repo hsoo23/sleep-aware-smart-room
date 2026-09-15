@@ -18,3 +18,7 @@
 - Result file location:
 - Anomalies and observations:
 
+# 검증 환경
+
+- 로컬 mock 검증:
+- 실제 장치 검증(미실시 시 `미실시`):

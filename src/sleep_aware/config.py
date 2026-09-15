@@ -17,6 +17,7 @@ def _int(name: str, default: int) -> int:
 @dataclass(frozen=True)
 class Settings:
     pi_base_url: str = os.getenv("PI_BASE_URL", "http://127.0.0.1:5050")
+    pi_timeout_seconds: float = _float("PI_TIMEOUT_SECONDS", 2.0)
     launcher_base_url: str = os.getenv("LAUNCHER_BASE_URL", "http://127.0.0.1:7000")
     camera_index: int = _int("CAMERA_INDEX", 0)
     ear_threshold: float = _float("EAR_THRESHOLD", 0.21)
@@ -27,4 +28,3 @@ class Settings:
 
 
 settings = Settings()
-
