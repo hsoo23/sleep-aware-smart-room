@@ -31,8 +31,17 @@ python -m pip install -e '.[dev]'
 pytest -q
 ```
 
-The unit tests cover EAR geometry, time-based temporal state transitions, and
-the pure intention-aware policy. They do not validate physical devices.
+The unit tests cover EAR geometry, time-based temporal state transitions, the
+pure intention-aware policy, and the structured log schema. They do not validate
+physical devices.
+
+To produce a hardware-free structured log under the Git-ignored `results/logs/`:
+
+```bash
+python -m sleep_aware.eventlog.mock_run
+```
+
+See [LOGGING_SCHEMA.md](LOGGING_SCHEMA.md) for the record format.
 
 ## Demonstration checklist
 

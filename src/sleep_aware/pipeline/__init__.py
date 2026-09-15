@@ -7,7 +7,14 @@ from .contracts import (
     FrameSource,
     LandmarkProcessor,
 )
-from .models import ActionResult, EyeLandmarks, Frame, PipelineEvent, Point
+from .models import (
+    ActionResult,
+    EyeLandmarks,
+    Frame,
+    LatencyBreakdown,
+    PipelineEvent,
+    Point,
+)
 from .runner import BaselinePipeline
 
 __all__ = [
@@ -20,6 +27,7 @@ __all__ = [
     "Frame",
     "FrameSource",
     "LandmarkProcessor",
+    "LatencyBreakdown",
     "PipelineEvent",
     "Point",
 ]

@@ -35,6 +35,8 @@ flowchart LR
   and `EventLogger`
 - `pipeline.runner`: synchronous orchestration only; it owns no camera, MediaPipe,
   network, filesystem, or GPIO implementation
+- `eventlog`: JSONL `EventLogger` implementation, run metadata, schema validation,
+  and redaction; see [LOGGING_SCHEMA.md](LOGGING_SCHEMA.md)
 - `config`: environment-specific values and experimental parameters
 - `legacy`: original submitted prototype kept as a reproducible reference
 - `data`: consented experiment data; raw data is intentionally ignored by Git
@@ -73,8 +75,15 @@ contracts as production adapters without requiring optional hardware packages.
 `Frame.timestamp` is the capture time from a monotonic clock. A missing face is
 represented by `LandmarkProcessor.process` returning `None`; the pipeline then
 passes `ear=None` to the detector. A `PipelineEvent` records the frame sequence,
-timestamp, calculated mean EAR, detected state, requested actions, and every
-action result.
+timestamp, intention, calculated mean EAR, the detector's `ear_threshold`, the
+previous and current state, requested actions, and every action result.
+
+`BaselinePipeline` accepts a `clock` (default `time.monotonic`) that must be the
+clock used for `Frame.timestamp`. It measures, per frame, inference latency
+(landmarks, EAR, detection), control latency (policy and all actions), each
+action's execution latency, and end-to-end latency from capture to the last
+action result. Logging time is excluded. Wall-clock time is added only by the
+event logger for correlation, never for durations.
 
 ## Error policy
 

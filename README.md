@@ -31,7 +31,9 @@ The research value is the integrated system and quantitative validation, not EAR
 ├── src/sleep_aware/
 │   ├── config.py
 │   ├── detection/          # EAR, adaptive calibration, PERCLOS, temporal state
-│   └── control/            # intention-aware closed-loop policy
+│   ├── control/            # intention-aware closed-loop policy
+│   ├── pipeline/           # hardware-independent contracts and orchestration
+│   └── eventlog/           # structured JSONL run logs and latency records
 ├── legacy/                 # original submitted working prototype (preserved verbatim)
 ├── config/                 # future versioned non-secret experiment configs
 ├── data/                   # raw/processed contents excluded from Git
@@ -39,6 +41,7 @@ The research value is the integrated system and quantitative validation, not EAR
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── RESEARCH_PLAN.md
+│   ├── LOGGING_SCHEMA.md
 │   └── EXPERIMENT_LOG_TEMPLATE.md
 ├── tests/
 ├── .env.example

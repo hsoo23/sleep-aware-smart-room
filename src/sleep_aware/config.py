@@ -24,6 +24,7 @@ class Settings:
     recovery_seconds: float = _float("RECOVERY_SECONDS", 0.5)
     relay_pin: int = _int("RELAY_PIN", 17)
     buzzer_pin: int = _int("BUZZER_PIN", 18)
+    log_dir: str = os.getenv("LOG_DIR", "results/logs")
 
 
 settings = Settings()
