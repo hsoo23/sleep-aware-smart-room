@@ -18,3 +18,5 @@ results/*
 .idea/
 .vscode/
 
+*.egg-info/
+build/

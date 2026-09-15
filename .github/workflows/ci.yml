@@ -1,0 +1,56 @@
+# Hardware-free CI: runs lint and unit/mock tests only.
+# Passing CI does not validate the camera, MediaPipe, GPIO, relay, buzzer, or media devices.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Ruff
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Ruff check (src, tests; legacy excluded)
+        run: ruff check --output-format=github src tests
+
+  test:
+    name: pytest (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      # Only the dev extra is installed: no OpenCV, MediaPipe, or RPi.GPIO on the runner.
+      - name: Install development dependencies
+        run: python -m pip install -e '.[dev]'
+      - name: Compile sources
+        run: python -m compileall -q src tests
+      - name: Run pytest
+        run: python -m pytest -v

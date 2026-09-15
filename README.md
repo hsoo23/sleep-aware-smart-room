@@ -91,6 +91,10 @@ The first command checks syntax and imports that do not require optional camera
 or GPIO packages. The second command requires the development extra from the
 Quick start section.
 
+GitHub Actions runs Ruff and pytest on Python 3.10–3.13 for every pull request
+without camera, MediaPipe, or GPIO packages. A passing CI run is not hardware
+validation; see [docs/CONTINUOUS_INTEGRATION.md](docs/CONTINUOUS_INTEGRATION.md).
+
 ## Ablation plan
 
 | Stage | Detector |

@@ -8,6 +8,14 @@ version = "0.1.0"
 description = "Closed-loop edge-AI drowsiness detection and intention-aware smart-room control research baseline"
 readme = "README.md"
 requires-python = ">=3.10"
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
 dependencies = [
   "numpy>=1.24",
   "requests>=2.31",
@@ -29,4 +37,11 @@ testpaths = ["tests"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
+# legacy/ preserves the submitted prototype verbatim; it is never linted or auto-fixed.
+extend-exclude = ["legacy"]
+force-exclude = true
+
+[tool.ruff.lint]
+# Pin the rule set explicitly so CI results do not change with Ruff's default rules.
+select = ["E", "F", "W", "I", "B", "UP"]
 
