@@ -89,7 +89,9 @@ action result.
 - An executor result for an action other than the requested action is a contract
   violation and raises `ValueError`.
 
-The HTTP executor uses `POST` for state changes, applies the configured timeout,
-and reports status, elapsed time, and a stable error reason without logging URLs
-or response bodies. See [RASPBERRY_PI_SMOKE_TEST.md](RASPBERRY_PI_SMOKE_TEST.md)
-for endpoint and physical-device verification details.
+The HTTP executor uses `POST` for state changes, disables redirects, applies the
+configured timeout, and streams only far enough to obtain the status before
+closing the response. It reports status, elapsed time, and a stable error reason
+without logging URLs or response bodies. See
+[RASPBERRY_PI_SMOKE_TEST.md](RASPBERRY_PI_SMOKE_TEST.md) for endpoint and
+physical-device verification details.

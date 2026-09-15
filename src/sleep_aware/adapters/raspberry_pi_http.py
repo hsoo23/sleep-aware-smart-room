@@ -26,11 +26,20 @@ ACTION_ENDPOINTS: Mapping[Action, str] = {
 
 class HttpResponse(Protocol):
     status_code: int
-    text: str
+
+    def close(self) -> None: ...
 
 
 class HttpTransport(Protocol):
-    def request(self, method: str, url: str, *, timeout: float) -> HttpResponse: ...
+    def request(
+        self,
+        method: str,
+        url: str,
+        *,
+        timeout: float,
+        allow_redirects: bool,
+        stream: bool,
+    ) -> HttpResponse: ...
 
 
 class RaspberryPiHttpActionExecutor:
@@ -70,6 +79,8 @@ class RaspberryPiHttpActionExecutor:
                 "POST",
                 f"{self._base_url}{self._endpoints[action]}",
                 timeout=self._timeout_seconds,
+                allow_redirects=False,
+                stream=True,
             )
         except requests.Timeout:
             return self._failure(action, started_at, "timeout", "request timed out")
@@ -80,22 +91,25 @@ class RaspberryPiHttpActionExecutor:
         except requests.RequestException:
             return self._failure(action, started_at, "request_error", "HTTP request failed")
 
-        elapsed_ms = self._elapsed_ms(started_at)
-        if not 200 <= response.status_code < 300:
-            return self._failure(
-                action,
-                started_at,
-                "http_status",
-                f"device returned HTTP {response.status_code}",
-                status_code=response.status_code,
+        try:
+            elapsed_ms = self._elapsed_ms(started_at)
+            if not 200 <= response.status_code < 300:
+                return self._failure(
+                    action,
+                    started_at,
+                    "http_status",
+                    f"device returned HTTP {response.status_code}",
+                    status_code=response.status_code,
+                    elapsed_ms=elapsed_ms,
+                )
+            return ActionResult(
+                action=action,
+                succeeded=True,
                 elapsed_ms=elapsed_ms,
+                status_code=response.status_code,
             )
-        return ActionResult(
-            action=action,
-            succeeded=True,
-            elapsed_ms=elapsed_ms,
-            status_code=response.status_code,
-        )
+        finally:
+            response.close()
 
     def _elapsed_ms(self, started_at: float) -> float:
         return max(0.0, (self._clock() - started_at) * 1000.0)

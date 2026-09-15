@@ -17,15 +17,27 @@ from sleep_aware.control import Action
 class StubResponse:
     status_code: int = 204
     text: str = ""
+    closed: bool = False
+
+    def close(self) -> None:
+        self.closed = True
 
 
 class StubTransport:
     def __init__(self, outcome: StubResponse | Exception) -> None:
         self.outcome = outcome
-        self.calls: list[tuple[str, str, float]] = []
+        self.calls: list[tuple[str, str, float, bool, bool]] = []
 
-    def request(self, method: str, url: str, *, timeout: float) -> StubResponse:
-        self.calls.append((method, url, timeout))
+    def request(
+        self,
+        method: str,
+        url: str,
+        *,
+        timeout: float,
+        allow_redirects: bool,
+        stream: bool,
+    ) -> StubResponse:
+        self.calls.append((method, url, timeout, allow_redirects, stream))
         if isinstance(self.outcome, Exception):
             raise self.outcome
         return self.outcome
@@ -70,7 +82,8 @@ def test_mock_executor_exposes_all_device_states_and_safe_repeated_commands():
 
 @pytest.mark.parametrize("action", list(Action))
 def test_http_executor_posts_each_action_to_its_mapped_endpoint(action: Action):
-    transport = StubTransport(StubResponse())
+    response = StubResponse()
+    transport = StubTransport(response)
     executor = RaspberryPiHttpActionExecutor(
         base_url="http://pi.invalid:5050/",
         timeout_seconds=1.25,
@@ -83,7 +96,10 @@ def test_http_executor_posts_each_action_to_its_mapped_endpoint(action: Action):
     assert result.succeeded
     assert result.status_code == 204
     assert result.elapsed_ms == pytest.approx(42.0)
-    assert transport.calls == [("POST", f"http://pi.invalid:5050{ACTION_ENDPOINTS[action]}", 1.25)]
+    assert transport.calls == [
+        ("POST", f"http://pi.invalid:5050{ACTION_ENDPOINTS[action]}", 1.25, False, True)
+    ]
+    assert response.closed
 
 
 @pytest.mark.parametrize(
@@ -123,10 +139,11 @@ def test_http_executor_returns_and_logs_network_failures(
 
 
 def test_http_executor_returns_non_success_status_without_response_body(caplog):
+    response = StubResponse(status_code=503, text="private diagnostics")
     executor = RaspberryPiHttpActionExecutor(
         base_url="http://pi.invalid:5050",
         timeout_seconds=2.0,
-        transport=StubTransport(StubResponse(status_code=503, text="private diagnostics")),
+        transport=StubTransport(response),
         clock=ticking_clock(2.0, 2.005),
     )
 
@@ -138,6 +155,7 @@ def test_http_executor_returns_non_success_status_without_response_body(caplog):
     assert result.error_reason == "http_status"
     assert result.detail == "device returned HTTP 503"
     assert "private diagnostics" not in caplog.text
+    assert response.closed
 
 
 @pytest.mark.parametrize(
