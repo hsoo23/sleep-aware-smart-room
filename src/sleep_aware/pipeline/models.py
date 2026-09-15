@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from sleep_aware.control import Action
+from sleep_aware.control import Action, PolicyTransition
 from sleep_aware.detection import DrowsinessState
 
 
@@ -53,3 +53,4 @@ class PipelineEvent:
     state: DrowsinessState
     actions: tuple[Action, ...]
     action_results: tuple[ActionResult, ...]
+    policy_transition: PolicyTransition

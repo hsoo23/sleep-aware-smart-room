@@ -1,4 +1,10 @@
-from sleep_aware.control.policy import Action, ClosedLoopPolicy, Intention
+from sleep_aware.control.policy import (
+    Action,
+    ClosedLoopPolicy,
+    Intention,
+    PolicyPhase,
+    TransitionReason,
+)
 from sleep_aware.detection.state import DrowsinessState, TemporalDrowsinessDetector
 
 
@@ -17,7 +23,11 @@ def test_sleep_policy_closes_loop_on_recovery():
         Action.START_SESSION,
     ]
     assert policy.decide(Intention.SLEEP, DrowsinessState.DROWSY) == []
+    assert policy.decide(Intention.SLEEP, DrowsinessState.EYES_CLOSED) == []
+    assert policy.decide(Intention.SLEEP, DrowsinessState.NO_FACE) == []
+    assert policy.phase is PolicyPhase.AWAITING_RECOVERY
     assert policy.decide(Intention.SLEEP, DrowsinessState.AWAKE) == [Action.END_SESSION]
+    assert policy.phase is PolicyPhase.IDLE
 
 
 def test_wake_policy_resumes_media_after_recovery():
@@ -27,4 +37,58 @@ def test_wake_policy_resumes_media_after_recovery():
         Action.LIGHT_ON,
         Action.BUZZER_ALERT,
     ]
+    assert policy.decide(Intention.WAKE, DrowsinessState.NO_FACE) == []
+    assert policy.decide(Intention.WAKE, DrowsinessState.EYES_CLOSED) == []
     assert policy.decide(Intention.WAKE, DrowsinessState.AWAKE) == [Action.PLAY_MEDIA]
+
+
+def test_recovered_episode_allows_one_new_drowsy_action_sequence():
+    policy = ClosedLoopPolicy()
+
+    first_actions = policy.decide(Intention.WAKE, DrowsinessState.DROWSY)
+    assert policy.decide(Intention.WAKE, DrowsinessState.DROWSY) == []
+    assert policy.decide(Intention.WAKE, DrowsinessState.AWAKE) == [Action.PLAY_MEDIA]
+
+    assert policy.decide(Intention.WAKE, DrowsinessState.DROWSY) == first_actions
+
+
+def test_mode_change_discards_previous_mode_episode_state():
+    policy = ClosedLoopPolicy()
+    policy.decide(Intention.SLEEP, DrowsinessState.DROWSY)
+
+    transition = policy.transition(Intention.WAKE, DrowsinessState.AWAKE)
+
+    assert transition.reason is TransitionReason.INTENTION_CHANGED
+    assert transition.previous_phase is PolicyPhase.AWAITING_RECOVERY
+    assert transition.next_phase is PolicyPhase.IDLE
+    assert transition.actions == ()
+    assert policy.decide(Intention.WAKE, DrowsinessState.DROWSY) == [
+        Action.PAUSE_MEDIA,
+        Action.LIGHT_ON,
+        Action.BUZZER_ALERT,
+    ]
+
+
+def test_reset_discards_episode_and_session_ownership():
+    policy = ClosedLoopPolicy()
+    policy.decide(Intention.SLEEP, DrowsinessState.DROWSY)
+
+    policy.reset(Intention.SLEEP)
+
+    assert policy.phase is PolicyPhase.IDLE
+    assert policy.decide(Intention.SLEEP, DrowsinessState.AWAKE) == []
+
+
+def test_transition_explains_actions_with_previous_and_next_phase():
+    policy = ClosedLoopPolicy()
+
+    transition = policy.transition(Intention.WAKE, DrowsinessState.DROWSY)
+
+    assert transition.reason is TransitionReason.DROWSY_DETECTED
+    assert transition.previous_phase is PolicyPhase.IDLE
+    assert transition.next_phase is PolicyPhase.AWAITING_RECOVERY
+    assert transition.actions == (
+        Action.PAUSE_MEDIA,
+        Action.LIGHT_ON,
+        Action.BUZZER_ALERT,
+    )

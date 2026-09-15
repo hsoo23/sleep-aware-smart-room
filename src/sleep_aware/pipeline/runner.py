@@ -55,11 +55,13 @@ class BaselinePipeline:
 
     def run(self) -> Iterator[PipelineEvent]:
         """Process all available frames and yield each event after it is logged."""
+        self._policy.reset(self._intention)
         while (frame := self._frame_source.read()) is not None:
             landmarks = self._landmark_processor.process(frame)
             ear = self._ear_calculator(landmarks) if landmarks is not None else None
             state = self._detector.update(frame.timestamp, ear)
-            actions = tuple(self._policy.decide(self._intention, state))
+            policy_transition = self._policy.transition(self._intention, state)
+            actions = policy_transition.actions
             results = tuple(self._execute(action) for action in actions)
             event = PipelineEvent(
                 frame_sequence=frame.sequence,
@@ -68,9 +70,14 @@ class BaselinePipeline:
                 state=state,
                 actions=actions,
                 action_results=results,
+                policy_transition=policy_transition,
             )
             self._event_logger.log(event)
             yield event
+
+    def set_intention(self, intention: Intention) -> None:
+        """Apply a mode change on the next observation."""
+        self._intention = intention
 
     def _execute(self, action: Action) -> ActionResult:
         try:

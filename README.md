@@ -38,6 +38,7 @@ The research value is the integrated system and quantitative validation, not EAR
 ├── results/                # generated experiment outputs excluded from Git
 ├── docs/
 │   ├── ARCHITECTURE.md
+│   ├── CLOSED_LOOP_POLICY.md
 │   ├── RESEARCH_PLAN.md
 │   └── EXPERIMENT_LOG_TEMPLATE.md
 ├── tests/
@@ -110,7 +111,9 @@ The system does not stop after an alert:
 state detection -> intention-dependent actuation -> re-observation -> restoration/policy transition
 ```
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the complete workflow.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the complete workflow and
+[docs/CLOSED_LOOP_POLICY.md](docs/CLOSED_LOOP_POLICY.md) for the mode-specific
+state transitions and action sequences.
 
 ## Privacy and secrets
 
