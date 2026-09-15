@@ -5,8 +5,9 @@ from __future__ import annotations
 import re
 
 _PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
-    (re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"), "<email>"),
+    # URLs first so credentials, paths, and query strings inside them are removed whole.
     (re.compile(r"\b[a-zA-Z][a-zA-Z0-9+.-]*://[^\s'\"<>]+"), "<url>"),
+    (re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"), "<email>"),
     (re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?\b"), "<ip>"),
     (
         re.compile(

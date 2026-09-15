@@ -25,6 +25,10 @@ INFERENCE_SECONDS = 0.012
 ACTION_SECONDS = 0.035
 OPEN_EAR_VERTICAL = 0.6  # EAR 0.30
 CLOSED_EAR_VERTICAL = 0.3  # EAR 0.15
+# Fixed rather than environment-backed so the scenario always reaches DROWSY and recovery.
+EAR_THRESHOLD = 0.21
+DROWSY_SECONDS = 2.0
+RECOVERY_SECONDS = 0.5
 
 # (seconds, eye vertical offset or None for no face)
 SCENARIO: tuple[tuple[float, float | None], ...] = (
@@ -115,9 +119,9 @@ def run_mock(
     """Run the synthetic scenario and return the path of the written log."""
     clock = SimulatedClock()
     detector = TemporalDrowsinessDetector(
-        ear_threshold=settings.ear_threshold,
-        drowsy_seconds=settings.drowsy_seconds,
-        recovery_seconds=settings.recovery_seconds,
+        ear_threshold=EAR_THRESHOLD,
+        drowsy_seconds=DROWSY_SECONDS,
+        recovery_seconds=RECOVERY_SECONDS,
     )
     commit, dirty = git_revision(Path(__file__).resolve().parent)
     metadata = RunMetadata(
@@ -125,7 +129,7 @@ def run_mock(
         intention=intention,
         detector_name="B0-fixed-ear",
         detector_version="0.1.0",
-        config_version="env-defaults",
+        config_version="mock-fixed",
         detector_config={
             "ear_threshold": detector.ear_threshold,
             "drowsy_seconds": detector.drowsy_seconds,

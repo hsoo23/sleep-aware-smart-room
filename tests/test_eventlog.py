@@ -2,22 +2,24 @@ import json
 import re
 import shutil
 import subprocess
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
+from sleep_aware.config import settings
 from sleep_aware.control import Action, Intention
 from sleep_aware.detection import DrowsinessState
 from sleep_aware.eventlog import (
     SCHEMA_VERSION,
     JsonlEventLogger,
     RunMetadata,
+    mock_run,
     new_run_id,
     redact,
     validate_record,
 )
-from sleep_aware.eventlog.mock_run import run_mock
 from sleep_aware.eventlog.schema import ACTION_FIELDS, RECORD_FIELDS
 from sleep_aware.pipeline import ActionResult, LatencyBreakdown, PipelineEvent
 
@@ -119,6 +121,25 @@ def test_logger_redacts_personal_and_network_identifiers(tmp_path):
     assert reason == "POST <url> failed for <email> via <ip> and <ip> from <path>"
 
 
+def test_redact_removes_whole_url_containing_credentials_path_and_query():
+    assert redact("GET https://user@example.com/private?token=secret failed") == (
+        "GET <url> failed"
+    )
+
+
+def test_logger_removes_file_when_run_start_cannot_be_written(tmp_path):
+    def broken_clock():
+        raise RuntimeError("clock unavailable")
+
+    with pytest.raises(RuntimeError):
+        JsonlEventLogger(tmp_path, _metadata(), wall_clock=broken_clock)
+
+    assert list(tmp_path.iterdir()) == []
+    with JsonlEventLogger(tmp_path, _metadata()) as logger:
+        pass
+    assert logger.path.exists()
+
+
 def test_redact_keeps_ordinary_failure_text():
     assert redact("relay timeout after 12:30:45 (attempt 2/3)") == (
         "relay timeout after 12:30:45 (attempt 2/3)"
@@ -157,12 +178,17 @@ def test_schema_rejects_wrong_types_enums_and_negative_latency(tmp_path):
     assert "'end_to_end_latency_ms' must be non-negative" in message
     assert "frame.actions[0]: field 'success' must be bool" in message
     assert "unexpected field 'extra'" in message
+    for value in (float("nan"), float("inf")):
+        with pytest.raises(ValueError, match="'ear' must be finite"):
+            validate_record({**frame, "ear": value})
     with pytest.raises(ValueError, match="unknown record_type"):
         validate_record({"record_type": "debug"})
 
 
-def test_mock_pipeline_run_produces_valid_log(tmp_path):
-    path = run_mock(tmp_path, Intention.WAKE)
+def test_mock_pipeline_run_produces_valid_log(tmp_path, monkeypatch):
+    # The mock scenario must not depend on the local detector environment.
+    monkeypatch.setattr(mock_run, "settings", replace(settings, drowsy_seconds=10.0))
+    path = mock_run.run_mock(tmp_path, Intention.WAKE)
 
     records = _read(path)
     for record in records:

@@ -49,21 +49,28 @@ class JsonlEventLogger:
         self.path = Path(log_dir) / f"{metadata.run_id}.jsonl"
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._file: IO[str] | None = self.path.open("x", encoding="utf-8")
-        self._write(
-            {
-                **self._common("run_start"),
-                "intention": metadata.intention.value,
-                "software_version": metadata.software_version,
-                "git_commit": metadata.git_commit,
-                "git_dirty": metadata.git_dirty,
-                "detector_name": metadata.detector_name,
-                "detector_version": metadata.detector_version,
-                "config_version": metadata.config_version,
-                "detector_config": dict(metadata.detector_config),
-                "python_version": metadata.python_version,
-                "platform": metadata.platform,
-            }
-        )
+        try:
+            self._write(
+                {
+                    **self._common("run_start"),
+                    "intention": metadata.intention.value,
+                    "software_version": metadata.software_version,
+                    "git_commit": metadata.git_commit,
+                    "git_dirty": metadata.git_dirty,
+                    "detector_name": metadata.detector_name,
+                    "detector_version": metadata.detector_version,
+                    "config_version": metadata.config_version,
+                    "detector_config": dict(metadata.detector_config),
+                    "python_version": metadata.python_version,
+                    "platform": metadata.platform,
+                }
+            )
+        except BaseException:
+            # Leave no partial file behind so the same run_id can be retried.
+            self._file.close()
+            self._file = None
+            self.path.unlink(missing_ok=True)
+            raise
 
     def log(self, event: PipelineEvent) -> None:
         self._write(

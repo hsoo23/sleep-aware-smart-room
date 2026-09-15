@@ -6,6 +6,7 @@ one JSON object whose ``record_type`` selects the field specification below.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from typing import Any
 
@@ -116,6 +117,8 @@ def _check_fields(
         if not _check_type(value, allowed):
             expected = ", ".join(kind.__name__ for kind in allowed)
             problems.append(f"{where}: field {name!r} must be {expected}, got {value!r}")
+        elif isinstance(value, float) and not math.isfinite(value):
+            problems.append(f"{where}: field {name!r} must be finite, got {value!r}")
         elif name in _ENUM_VALUES and value is not None and value not in _ENUM_VALUES[name]:
             problems.append(f"{where}: field {name!r} has unknown value {value!r}")
         elif name in _NON_NEGATIVE and value < 0:
