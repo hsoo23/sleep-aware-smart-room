@@ -45,6 +45,7 @@ class TransitionReason(str, Enum):
     NO_FACE_IGNORED = "no_face_ignored"
     RECOVERY_CONFIRMED = "recovery_confirmed"
     INTENTION_CHANGED = "intention_changed"
+    RESET = "reset"
 
 
 @dataclass(frozen=True)
@@ -67,17 +68,29 @@ class ClosedLoopPolicy:
     _phase: PolicyPhase = field(default=PolicyPhase.IDLE, init=False)
     _sleep_session_active: bool = field(default=False, init=False)
     _media_paused_by_system: bool = field(default=False, init=False)
+    _pending_intention: Intention | None = field(default=None, init=False)
+    _pending_reset_reason: TransitionReason | None = field(default=None, init=False)
 
     @property
     def phase(self) -> PolicyPhase:
         return self._phase
 
     def reset(self, intention: Intention | None = None) -> None:
-        """Discard all episode state, such as when a pipeline starts again."""
+        """Request a clean lifecycle boundary without losing owned resources."""
+        if self._sleep_session_active or self._media_paused_by_system:
+            self._pending_intention = intention
+            self._pending_reset_reason = TransitionReason.RESET
+            return
+        self._clear(intention)
+
+    def _clear(self, intention: Intention | None) -> None:
+        """Clear internal state after no cleanup is needed or cleanup is emitted."""
         self._intention = intention
         self._phase = PolicyPhase.IDLE
         self._sleep_session_active = False
         self._media_paused_by_system = False
+        self._pending_intention = None
+        self._pending_reset_reason = None
 
     def decide(self, intention: Intention, state: DrowsinessState) -> list[Action]:
         """Return actions for callers that do not need transition metadata."""
@@ -90,10 +103,17 @@ class ClosedLoopPolicy:
         if not isinstance(intention, Intention):
             raise ValueError(f"unsupported intention: {intention}")
 
+        if self._pending_reset_reason is not None:
+            return self._complete_reset(intention, state)
+
         previous_phase = self._phase
         intention_changed = self._intention is not None and intention is not self._intention
         if intention_changed:
-            self.reset(intention)
+            if self._sleep_session_active or self._media_paused_by_system:
+                self._pending_intention = intention
+                self._pending_reset_reason = TransitionReason.INTENTION_CHANGED
+                return self._complete_reset(intention, state)
+            self._clear(intention)
         elif self._intention is None:
             self._intention = intention
 
@@ -127,6 +147,32 @@ class ClosedLoopPolicy:
                 reason=TransitionReason.INTENTION_CHANGED,
             )
         return transition
+
+    def _complete_reset(
+        self, intention: Intention, state: DrowsinessState
+    ) -> PolicyTransition:
+        """Emit cleanup actions before completing a reset or mode change."""
+        previous_phase = self._phase
+        next_intention = self._pending_intention or intention
+        reason = self._pending_reset_reason
+        if next_intention is None or reason is None:
+            raise RuntimeError("reset cleanup requested without lifecycle metadata")
+
+        actions: list[Action] = []
+        if self._sleep_session_active:
+            actions.append(Action.END_SESSION)
+        if self._media_paused_by_system:
+            actions.append(Action.PLAY_MEDIA)
+
+        self._clear(next_intention)
+        return PolicyTransition(
+            intention=next_intention,
+            observed_state=state,
+            previous_phase=previous_phase,
+            next_phase=self._phase,
+            reason=reason,
+            actions=tuple(actions),
+        )
 
     def _on_drowsy(
         self, intention: Intention, previous_phase: PolicyPhase

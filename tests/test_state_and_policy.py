@@ -61,7 +61,7 @@ def test_mode_change_discards_previous_mode_episode_state():
     assert transition.reason is TransitionReason.INTENTION_CHANGED
     assert transition.previous_phase is PolicyPhase.AWAITING_RECOVERY
     assert transition.next_phase is PolicyPhase.IDLE
-    assert transition.actions == ()
+    assert transition.actions == (Action.END_SESSION, Action.PLAY_MEDIA)
     assert policy.decide(Intention.WAKE, DrowsinessState.DROWSY) == [
         Action.PAUSE_MEDIA,
         Action.LIGHT_ON,
@@ -75,8 +75,23 @@ def test_reset_discards_episode_and_session_ownership():
 
     policy.reset(Intention.SLEEP)
 
+    assert policy.phase is PolicyPhase.AWAITING_RECOVERY
+    transition = policy.transition(Intention.SLEEP, DrowsinessState.AWAKE)
+    assert transition.reason is TransitionReason.RESET
+    assert transition.actions == (Action.END_SESSION, Action.PLAY_MEDIA)
     assert policy.phase is PolicyPhase.IDLE
-    assert policy.decide(Intention.SLEEP, DrowsinessState.AWAKE) == []
+
+
+def test_reset_resumes_media_paused_by_wake_episode():
+    policy = ClosedLoopPolicy()
+    policy.decide(Intention.WAKE, DrowsinessState.DROWSY)
+
+    policy.reset(Intention.WAKE)
+    transition = policy.transition(Intention.WAKE, DrowsinessState.AWAKE)
+
+    assert transition.reason is TransitionReason.RESET
+    assert transition.actions == (Action.PLAY_MEDIA,)
+    assert policy.phase is PolicyPhase.IDLE
 
 
 def test_transition_explains_actions_with_previous_and_next_phase():

@@ -118,7 +118,7 @@ def test_no_face_is_forwarded_as_missing_ear():
     assert event.policy_transition.reason is TransitionReason.NO_FACE_IGNORED
 
 
-def test_pipeline_start_resets_reused_policy_state():
+def test_pipeline_start_cleans_up_reused_policy_state():
     policy = ClosedLoopPolicy()
     policy.decide(Intention.WAKE, DrowsinessState.DROWSY)
     logger = InMemoryEventLogger()
@@ -135,5 +135,7 @@ def test_pipeline_start_resets_reused_policy_state():
     event = next(pipeline.run())
 
     assert event.state is DrowsinessState.AWAKE
-    assert event.actions == ()
-    assert event.policy_transition.previous_phase is PolicyPhase.IDLE
+    assert event.actions == (Action.PLAY_MEDIA,)
+    assert event.policy_transition.reason is TransitionReason.RESET
+    assert event.policy_transition.previous_phase is PolicyPhase.AWAITING_RECOVERY
+    assert event.policy_transition.next_phase is PolicyPhase.IDLE
