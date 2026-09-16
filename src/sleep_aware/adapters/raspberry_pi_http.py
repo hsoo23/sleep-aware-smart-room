@@ -6,6 +6,7 @@ import logging
 import time
 from collections.abc import Callable, Mapping
 from typing import Protocol
+from urllib.parse import urlparse
 
 import requests
 
@@ -53,11 +54,25 @@ class RaspberryPiHttpActionExecutor:
         endpoints: Mapping[Action, str] = ACTION_ENDPOINTS,
         logger: logging.Logger | None = None,
         clock: Callable[[], float] = time.perf_counter,
+        allow_insecure_http: bool = False,
     ) -> None:
         if not base_url.strip():
             raise ValueError("base_url must not be empty")
         if timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be positive")
+        parsed_url = urlparse(base_url)
+        loopback_hosts = {"127.0.0.1", "::1", "localhost"}
+        if parsed_url.scheme not in {"http", "https"} or not parsed_url.hostname:
+            raise ValueError("base_url must be an absolute HTTP(S) URL")
+        if (
+            parsed_url.scheme == "http"
+            and parsed_url.hostname not in loopback_hosts
+            and not allow_insecure_http
+        ):
+            raise ValueError(
+                "plain HTTP is allowed only for loopback; use HTTPS or explicitly "
+                "enable allow_insecure_http for an isolated development network"
+            )
         missing = set(Action) - set(endpoints)
         if missing:
             names = ", ".join(sorted(action.value for action in missing))

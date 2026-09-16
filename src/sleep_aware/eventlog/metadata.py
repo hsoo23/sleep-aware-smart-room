@@ -9,11 +9,12 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Union
 
 from sleep_aware import __version__
 from sleep_aware.control import Intention
 
-ConfigValue = str | int | float | bool | None
+ConfigValue = Union[str, int, float, bool, None]  # noqa: UP007
 
 
 @dataclass(frozen=True)

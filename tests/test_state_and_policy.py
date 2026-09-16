@@ -138,3 +138,16 @@ def test_transition_explains_actions_with_previous_and_next_phase():
         Action.LIGHT_ON,
         Action.BUZZER_ALERT,
     )
+
+
+def test_policy_retries_only_failed_actions_after_acknowledgement():
+    policy = ClosedLoopPolicy()
+    transition = policy.transition(Intention.WAKE, DrowsinessState.DROWSY)
+
+    policy.acknowledge(transition, (True, False, True))
+    retry = policy.transition(Intention.WAKE, DrowsinessState.DROWSY)
+
+    assert retry.reason is TransitionReason.ACTION_RETRY
+    assert retry.actions == (Action.LIGHT_ON,)
+    policy.acknowledge(retry, (True,))
+    assert policy.transition(Intention.WAKE, DrowsinessState.DROWSY).actions == ()

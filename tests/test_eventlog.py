@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import re
 import shutil
@@ -227,6 +229,28 @@ def test_action_schema_matches_logger_output(tmp_path):
 
     for action in _read(logger.path)[1]["actions"]:
         assert set(action) == set(ACTION_FIELDS)
+
+
+def test_schema_rejects_sensitive_or_unknown_detector_config():
+    record = {
+        "schema_version": SCHEMA_VERSION,
+        "record_type": "run_start",
+        "run_id": "run",
+        "wall_time_utc": FIXED_NOW.isoformat(),
+        "intention": "wake",
+        "software_version": "0.1.0",
+        "git_commit": None,
+        "git_dirty": None,
+        "detector_name": "fixed-ear",
+        "detector_version": "1",
+        "config_version": "test",
+        "detector_config": {"device_url": "http://192.168.0.2"},
+        "python_version": "3.10",
+        "platform": "test",
+    }
+
+    with pytest.raises(ValueError, match="detector_config"):
+        validate_record(record)
 
 
 @pytest.mark.skipif(shutil.which("git") is None, reason="git is not installed")

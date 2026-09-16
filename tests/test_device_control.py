@@ -58,6 +58,23 @@ def test_media_adapter_executes_chrome_applescript(action: Action, output: str):
     assert result.succeeded
     assert result.elapsed_ms == pytest.approx(25.0)
     assert calls[0][0][0][:2] == ["osascript", "-e"]
+    script = calls[0][0][0][2]
+    assert "set jsResult to execute javascript" in script
+    assert "return jsResult" in script
+
+
+def test_media_adapter_reports_missing_video_from_javascript_result():
+    def runner(*args, **kwargs):
+        return subprocess.CompletedProcess(args[0], 0, stdout="no video\n", stderr="")
+
+    executor = MacOSChromeMediaActionExecutor(
+        system="Darwin", runner=runner, clock=ticking_clock(2.0, 2.01)
+    )
+
+    result = executor.execute(Action.PAUSE_MEDIA)
+
+    assert not result.succeeded
+    assert result.error_reason == "media_not_found"
 
 
 class FakeGpio:
@@ -104,6 +121,25 @@ def test_gpio_adapter_controls_actions_and_restores_safe_state_on_close():
     assert ("output", 18, gpio.LOW) in gpio.calls
     assert gpio.calls.count(("cleanup", (17, 18))) == 1
     assert ("setup", 17, gpio.IN, {"pull_up_down": gpio.PUD_OFF}) in gpio.calls
+
+
+def test_gpio_adapter_contains_action_and_safe_cleanup_failures():
+    class FailingGpio(FakeGpio):
+        def output(self, pin, value):
+            super().output(pin, value)
+            if pin == 17 or (pin == 18 and len(self.calls) > 3):
+                raise RuntimeError("simulated GPIO failure")
+
+    gpio = FailingGpio()
+    executor = RaspberryPiGpioActionExecutor(
+        gpio=gpio,
+        clock=ticking_clock(1.0, 1.01),
+    )
+
+    result = executor.execute(Action.LIGHT_ON)
+
+    assert not result.succeeded
+    assert result.error_reason == "gpio_error_cleanup_failed"
 
 
 def test_session_adapter_is_idempotent_and_records_duration():

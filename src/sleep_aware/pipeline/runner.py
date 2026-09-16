@@ -6,6 +6,7 @@ import time
 from collections.abc import Callable, Iterator
 from dataclasses import replace
 from time import perf_counter
+from typing import Union
 
 from sleep_aware.control import Action, ClosedLoopPolicy, Intention
 from sleep_aware.detection import DrowsinessState, calculate_eye_ears
@@ -19,7 +20,7 @@ from .contracts import (
 )
 from .models import ActionResult, EyeLandmarks, LatencyBreakdown, PipelineEvent
 
-EarResult = float | tuple[float, float, float]
+EarResult = Union[float, tuple[float, float, float]]  # noqa: UP007
 
 
 class BaselinePipeline:
@@ -51,6 +52,7 @@ class BaselinePipeline:
         # Must be the same monotonic clock that stamps Frame.timestamp.
         self._clock = clock
         self._previous_state: DrowsinessState | None = None
+        self._last_state: DrowsinessState | None = None
 
     def run(self) -> Iterator[PipelineEvent]:
         """Process all available frames and yield each event after it is logged."""
@@ -73,10 +75,13 @@ class BaselinePipeline:
                     ear = ear_result
             state = self._detector.update(frame.timestamp, ear)
             inference_latency_ms = (self._latency_clock() - inference_started) * 1_000
+            control_start = self._clock()
             policy_transition = self._policy.transition(self._intention, state)
             actions = policy_transition.actions
-            control_start = self._clock()
             results = tuple(self._execute(action) for action in actions)
+            self._policy.acknowledge(
+                policy_transition, tuple(result.succeeded for result in results)
+            )
             control_end = self._clock()
             event = PipelineEvent(
                 frame_sequence=frame.sequence,
@@ -100,12 +105,25 @@ class BaselinePipeline:
                 inference_latency_ms=inference_latency_ms,
             )
             self._previous_state = state
+            self._last_state = state
             self._event_logger.log(event)
             yield event
 
     def set_intention(self, intention: Intention) -> None:
         """Apply a mode change on the next observation."""
         self._intention = intention
+
+    def close(self) -> tuple[ActionResult, ...]:
+        """Execute policy-owned cleanup actions; repeated calls are safe."""
+        self._policy.reset(self._intention)
+        transition = self._policy.transition(
+            self._intention, self._last_state or DrowsinessState.NO_FACE
+        )
+        results = tuple(self._execute(action) for action in transition.actions)
+        self._policy.acknowledge(
+            transition, tuple(result.succeeded for result in results)
+        )
+        return results
 
     def _execute(self, action: Action) -> ActionResult:
         start = self._clock()

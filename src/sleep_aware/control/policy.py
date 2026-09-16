@@ -46,6 +46,7 @@ class TransitionReason(str, Enum):
     RECOVERY_CONFIRMED = "recovery_confirmed"
     INTENTION_CHANGED = "intention_changed"
     RESET = "reset"
+    ACTION_RETRY = "action_retry"
 
 
 @dataclass(frozen=True)
@@ -70,6 +71,7 @@ class ClosedLoopPolicy:
     _media_paused_by_system: bool = field(default=False, init=False)
     _pending_intention: Intention | None = field(default=None, init=False)
     _pending_reset_reason: TransitionReason | None = field(default=None, init=False)
+    _pending_retry_actions: tuple[Action, ...] = field(default=(), init=False)
 
     @property
     def phase(self) -> PolicyPhase:
@@ -77,6 +79,7 @@ class ClosedLoopPolicy:
 
     def reset(self, intention: Intention | None = None) -> None:
         """Request a clean lifecycle boundary without losing owned resources."""
+        self._pending_retry_actions = ()
         if self._sleep_session_active or self._media_paused_by_system:
             self._pending_intention = intention
             self._pending_reset_reason = TransitionReason.RESET
@@ -91,6 +94,7 @@ class ClosedLoopPolicy:
         self._media_paused_by_system = False
         self._pending_intention = None
         self._pending_reset_reason = None
+        self._pending_retry_actions = ()
 
     def decide(self, intention: Intention, state: DrowsinessState) -> list[Action]:
         """Return actions for callers that do not need transition metadata."""
@@ -102,6 +106,16 @@ class ClosedLoopPolicy:
         """Observe a state and return the complete policy transition record."""
         if not isinstance(intention, Intention):
             raise TypeError(f"unsupported intention: {intention}")
+
+        if self._pending_retry_actions:
+            return PolicyTransition(
+                intention=intention,
+                observed_state=state,
+                previous_phase=self._phase,
+                next_phase=self._phase,
+                reason=TransitionReason.ACTION_RETRY,
+                actions=self._pending_retry_actions,
+            )
 
         if self._pending_reset_reason is not None:
             return self._complete_reset(intention, state)
@@ -147,6 +161,16 @@ class ClosedLoopPolicy:
                 reason=TransitionReason.INTENTION_CHANGED,
             )
         return transition
+
+    def acknowledge(
+        self, transition: PolicyTransition, succeeded: tuple[bool, ...]
+    ) -> None:
+        """Schedule failed actions for retry on the next observation."""
+        if len(succeeded) != len(transition.actions):
+            raise ValueError("one acknowledgement is required for every action")
+        self._pending_retry_actions = tuple(
+            action for action, ok in zip(transition.actions, succeeded) if not ok
+        )
 
     def _complete_reset(
         self, intention: Intention, state: DrowsinessState

@@ -7,7 +7,7 @@ from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
 from types import TracebackType
-from typing import IO, Any, Self
+from typing import IO, Any
 
 from sleep_aware.pipeline import PipelineEvent
 
@@ -123,7 +123,7 @@ class JsonlEventLogger:
             self._file.close()
             self._file = None
 
-    def __enter__(self) -> Self:
+    def __enter__(self) -> JsonlEventLogger:  # noqa: PYI034
         return self
 
     def __exit__(

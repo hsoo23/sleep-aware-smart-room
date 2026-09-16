@@ -73,15 +73,16 @@ class SyntheticFrameSource:
         self._clock = clock
         self._observations = _observations()
         self._sequence = 0
+        self._next_capture_at = clock()
 
     def read(self) -> Frame | None:
         vertical = next(self._observations, False)
         if vertical is False:
             return None
-        if self._sequence:
-            self._clock.advance(1.0 / FPS)
+        self._clock.advance(max(0.0, self._next_capture_at - self._clock()))
         frame = Frame(self._sequence, self._clock(), payload=vertical)
         self._sequence += 1
+        self._next_capture_at += 1.0 / FPS
         return frame
 
 

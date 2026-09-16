@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections import deque
 
 import pytest
@@ -220,3 +222,23 @@ def test_pipeline_start_cleans_up_reused_policy_state():
     assert event.policy_transition.reason is TransitionReason.RESET
     assert event.policy_transition.previous_phase is PolicyPhase.AWAITING_RECOVERY
     assert event.policy_transition.next_phase is PolicyPhase.IDLE
+
+
+def test_pipeline_close_restores_policy_owned_resources():
+    executor = FakeActionExecutor(failing_action=Action.LIGHT_ON)
+    closed_eye = EyeLandmarks(_eye(0.4), _eye(0.4))
+    pipeline = BaselinePipeline(
+        frame_source=FakeFrameSource([Frame(0, 0.0, object()), Frame(1, 2.0, object())]),
+        landmark_processor=FakeLandmarkProcessor([closed_eye, closed_eye]),
+        detector=TemporalDrowsinessDetector(ear_threshold=0.21, drowsy_seconds=2.0),
+        policy=ClosedLoopPolicy(),
+        action_executor=executor,
+        event_logger=InMemoryEventLogger(),
+        intention=Intention.WAKE,
+    )
+
+    list(pipeline.run())
+    results = pipeline.close()
+
+    assert [result.action for result in results] == [Action.PLAY_MEDIA]
+    assert executor.executed[-1] is Action.PLAY_MEDIA

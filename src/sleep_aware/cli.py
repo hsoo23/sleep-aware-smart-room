@@ -58,6 +58,11 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--ear-threshold", type=float, default=settings.ear_threshold)
     parser.add_argument("--camera-index", type=int, default=settings.camera_index)
     parser.add_argument("--display", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument(
+        "--allow-insecure-http",
+        action="store_true",
+        help="격리된 개발망에서 Raspberry Pi 평문 HTTP를 명시적으로 허용",
+    )
     return parser
 
 
@@ -67,6 +72,7 @@ def run_camera(args: argparse.Namespace) -> Path:
         executor = RaspberryPiHttpActionExecutor(
             base_url=settings.pi_base_url,
             timeout_seconds=settings.pi_timeout_seconds,
+            allow_insecure_http=args.allow_insecure_http,
         )
     else:
         executor = MockActionExecutor()
@@ -125,8 +131,11 @@ def run_camera(args: argparse.Namespace) -> Path:
             event_logger=logger,
             intention=Intention(args.intention),
         )
-        for _ in pipeline.run():
-            pass
+        try:
+            for _ in pipeline.run():
+                pass
+        finally:
+            pipeline.close()
         return logger.path
 
 

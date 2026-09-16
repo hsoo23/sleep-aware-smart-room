@@ -13,6 +13,8 @@ from typing import Any
 from sleep_aware.control import Action, Intention
 from sleep_aware.detection import DrowsinessState
 
+from .privacy import redact
+
 SCHEMA_VERSION = "1.0"
 
 RUN_STATUSES = ("completed", "failed")
@@ -93,6 +95,9 @@ _ENUM_VALUES: dict[str, frozenset[str]] = {
 _NON_NEGATIVE = frozenset(
     {"inference_latency_ms", "control_latency_ms", "end_to_end_latency_ms", "latency_ms"}
 )
+_DETECTOR_CONFIG_KEYS = frozenset(
+    {"ear_threshold", "drowsy_seconds", "recovery_seconds", "source", "action_mode"}
+)
 
 
 def _check_type(value: Any, allowed: tuple[type, ...]) -> bool:
@@ -144,5 +149,22 @@ def validate_record(record: Mapping[str, Any]) -> None:
                 problems.append(f"{where}: must be an object")
                 continue
             problems.extend(_check_fields(action, ACTION_FIELDS, where))
+            if isinstance(action, dict):
+                success = action.get("success")
+                reason = action.get("failure_reason")
+                if success is True and reason is not None:
+                    problems.append(f"{where}: successful action must not have failure_reason")
+                if success is False and (not isinstance(reason, str) or not reason.strip()):
+                    problems.append(f"{where}: failed action requires failure_reason")
+    if record_type == "run_start" and isinstance(record.get("detector_config"), dict):
+        config = record["detector_config"]
+        unknown = sorted(set(config) - _DETECTOR_CONFIG_KEYS)
+        if unknown:
+            problems.append(f"run_start: unsupported detector_config keys {unknown!r}")
+        for key, value in config.items():
+            if not isinstance(value, (str, int, float, bool)) or isinstance(value, complex):
+                problems.append(f"run_start: detector_config[{key!r}] must be scalar")
+            elif isinstance(value, str) and redact(value) != value:
+                problems.append(f"run_start: detector_config[{key!r}] contains sensitive data")
     if problems:
         raise ValueError("; ".join(problems))

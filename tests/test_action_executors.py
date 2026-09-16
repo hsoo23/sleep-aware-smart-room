@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
 
@@ -89,6 +91,7 @@ def test_http_executor_posts_each_action_to_its_mapped_endpoint(action: Action):
         timeout_seconds=1.25,
         transport=transport,
         clock=ticking_clock(10.0, 10.042),
+        allow_insecure_http=True,
     )
 
     result = executor.execute(action)
@@ -121,6 +124,7 @@ def test_http_executor_returns_and_logs_network_failures(
         timeout_seconds=2.0,
         transport=StubTransport(exception),
         clock=ticking_clock(1.0, 1.015),
+        allow_insecure_http=True,
     )
 
     with caplog.at_level(logging.WARNING):
@@ -145,6 +149,7 @@ def test_http_executor_returns_non_success_status_without_response_body(caplog):
         timeout_seconds=2.0,
         transport=StubTransport(response),
         clock=ticking_clock(2.0, 2.005),
+        allow_insecure_http=True,
     )
 
     with caplog.at_level(logging.WARNING):
@@ -168,3 +173,19 @@ def test_http_executor_rejects_invalid_configuration(base_url: str, timeout_seco
             base_url=base_url,
             timeout_seconds=timeout_seconds,
         )
+
+
+def test_http_executor_rejects_remote_plain_http_without_explicit_opt_in():
+    with pytest.raises(ValueError, match="plain HTTP"):
+        RaspberryPiHttpActionExecutor(
+            base_url="http://192.168.0.10:5050",
+            timeout_seconds=1.0,
+        )
+
+
+@pytest.mark.parametrize(
+    "base_url",
+    ["http://localhost:5050", "http://127.0.0.1:5050", "https://pi.invalid"],
+)
+def test_http_executor_allows_loopback_http_or_https(base_url: str):
+    RaspberryPiHttpActionExecutor(base_url=base_url, timeout_seconds=1.0)

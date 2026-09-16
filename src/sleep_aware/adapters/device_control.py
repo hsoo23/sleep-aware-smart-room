@@ -7,7 +7,7 @@ import subprocess
 import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any, Protocol, Self
+from typing import Any, Protocol
 
 from sleep_aware.control import Action
 from sleep_aware.pipeline.models import ActionResult
@@ -99,8 +99,8 @@ tell application "Google Chrome"
     repeat with w in windows
         repeat with t in tabs of w
             if URL of t contains "youtube.com" then
-                tell t to execute javascript "var v=document.querySelector('video'); if(v){{v.{command}();'{command}'}}else{{'no video'}}"
-                return "{command}"
+                set jsResult to execute javascript "var v=document.querySelector('video'); if(v){{v.{command}();'{command}'}}else{{'no video'}}"
+                return jsResult
             end if
         end repeat
     end repeat
@@ -164,7 +164,10 @@ class RaspberryPiGpioActionExecutor:
                     self._sleeper(duration)
                 self._gpio.output(self._buzzer_pin, self._gpio.LOW)
         except (OSError, RuntimeError, ValueError):
-            self._safe_outputs()
+            try:
+                self._safe_outputs()
+            except (OSError, RuntimeError, ValueError):
+                return self._failure(action, started_at, "gpio_error_cleanup_failed")
             return self._failure(action, started_at, "gpio_error")
         return ActionResult(
             action=action,
@@ -258,7 +261,7 @@ class CompositeActionExecutor:
                 backend.close()
                 seen.add(identity)
 
-    def __enter__(self) -> Self:
+    def __enter__(self) -> CompositeActionExecutor:  # noqa: PYI034
         return self
 
     def __exit__(self, *_: object) -> None:

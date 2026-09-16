@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from types import ModuleType
-from typing import Any, Self
+from typing import Any
 
 from .models import EyeLandmarks, Frame, Point
 
@@ -124,7 +124,7 @@ class MediaPipeFaceMeshProcessor:
             self._face_mesh.close()
             self._closed = True
 
-    def __enter__(self) -> Self:
+    def __enter__(self) -> MediaPipeFaceMeshProcessor:  # noqa: PYI034
         return self
 
     def __exit__(self, exc_type: object, exc_value: object, traceback: object) -> None:
