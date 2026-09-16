@@ -3,7 +3,13 @@ from collections import deque
 import pytest
 
 from sleep_aware.capture import FakeFrameSource
-from sleep_aware.control import Action, ClosedLoopPolicy, Intention
+from sleep_aware.control import (
+    Action,
+    ClosedLoopPolicy,
+    Intention,
+    PolicyPhase,
+    TransitionReason,
+)
 from sleep_aware.detection import DrowsinessState, TemporalDrowsinessDetector
 from sleep_aware.pipeline import ActionResult, BaselinePipeline, EyeLandmarks, Frame, Point
 
@@ -76,6 +82,9 @@ def test_fake_pipeline_connects_frames_to_actions_and_results():
     )
     assert [result.succeeded for result in events[1].action_results] == [True, False, True]
     assert events[1].action_results[1].detail == "device unavailable"
+    assert events[1].policy_transition.previous_phase is PolicyPhase.IDLE
+    assert events[1].policy_transition.next_phase is PolicyPhase.AWAITING_RECOVERY
+    assert events[1].policy_transition.reason is TransitionReason.DROWSY_DETECTED
     assert executor.executed == list(events[1].actions)
     assert logger.events == events
 
@@ -99,6 +108,7 @@ def test_no_face_is_forwarded_as_missing_ear():
     assert event.state is DrowsinessState.NO_FACE
     assert event.actions == ()
     assert event.action_results == ()
+    assert event.policy_transition.reason is TransitionReason.NO_FACE_IGNORED
 
 
 def test_pipeline_records_ear_components_and_processing_latencies():
@@ -122,3 +132,26 @@ def test_pipeline_records_ear_components_and_processing_latencies():
     assert event.ear == pytest.approx(0.25)
     assert event.landmark_latency_ms == pytest.approx(12.0)
     assert event.inference_latency_ms == pytest.approx(3.0)
+
+
+def test_pipeline_start_cleans_up_reused_policy_state():
+    policy = ClosedLoopPolicy()
+    policy.decide(Intention.WAKE, DrowsinessState.DROWSY)
+    logger = InMemoryEventLogger()
+    pipeline = BaselinePipeline(
+        frame_source=FakeFrameSource([Frame(0, 1.0, object())]),
+        landmark_processor=FakeLandmarkProcessor([EyeLandmarks(_eye(1.0), _eye(1.0))]),
+        detector=TemporalDrowsinessDetector(recovery_seconds=0.0),
+        policy=policy,
+        action_executor=FakeActionExecutor(),
+        event_logger=logger,
+        intention=Intention.WAKE,
+    )
+
+    event = next(pipeline.run())
+
+    assert event.state is DrowsinessState.AWAKE
+    assert event.actions == (Action.PLAY_MEDIA,)
+    assert event.policy_transition.reason is TransitionReason.RESET
+    assert event.policy_transition.previous_phase is PolicyPhase.AWAITING_RECOVERY
+    assert event.policy_transition.next_phase is PolicyPhase.IDLE
