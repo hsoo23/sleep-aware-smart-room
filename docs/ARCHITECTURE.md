@@ -36,6 +36,8 @@ flowchart LR
 - `pipeline.runner`: synchronous orchestration only; it owns no camera, MediaPipe,
   network, filesystem, or GPIO implementation
 - `adapters`: hardware-free mock and bounded Raspberry Pi HTTP action executors
+- `capture`: OpenCV camera adapter and deterministic fake frame source; camera
+  acquisition errors stop the run and the adapter owns `VideoCapture` cleanup
 - `config`: environment-specific values and experimental parameters
 - `legacy`: original submitted prototype kept as a reproducible reference
 - `data`: consented experiment data; raw data is intentionally ignored by Git

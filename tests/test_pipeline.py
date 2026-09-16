@@ -2,6 +2,7 @@ from collections import deque
 
 import pytest
 
+from sleep_aware.capture import FakeFrameSource
 from sleep_aware.control import Action, ClosedLoopPolicy, Intention
 from sleep_aware.detection import DrowsinessState, TemporalDrowsinessDetector
 from sleep_aware.pipeline import ActionResult, BaselinePipeline, EyeLandmarks, Frame, Point
@@ -16,14 +17,6 @@ def _eye(vertical: float) -> tuple[Point, Point, Point, Point, Point, Point]:
         Point(3, -vertical),
         Point(1, -vertical),
     )
-
-
-class FakeFrameSource:
-    def __init__(self, frames: list[Frame]) -> None:
-        self.frames = deque(frames)
-
-    def read(self) -> Frame | None:
-        return self.frames.popleft() if self.frames else None
 
 
 class FakeLandmarkProcessor:

@@ -30,6 +30,7 @@ The research value is the integrated system and quantitative validation, not EAR
 .
 ├── src/sleep_aware/
 │   ├── config.py
+│   ├── capture/            # OpenCV and deterministic fake frame sources
 │   ├── detection/          # EAR, adaptive calibration, PERCLOS, temporal state
 │   └── control/            # intention-aware closed-loop policy
 ├── legacy/                 # original submitted working prototype (preserved verbatim)
@@ -94,6 +95,16 @@ Quick start section.
 The in-memory device executor and Raspberry Pi HTTP adapter are documented in
 [the Raspberry Pi smoke-test guide](docs/RASPBERRY_PI_SMOKE_TEST.md). Keep local
 mock results separate from physical-device observations.
+
+After installing the `host` extra, verify an attached webcam separately from CI:
+
+```bash
+python -m sleep_aware.capture.smoke
+```
+
+Camera index and requested resolution default to `CAMERA_INDEX`,
+`CAMERA_WIDTH`, and `CAMERA_HEIGHT` from the environment. See
+[docs/BASELINE_RUNBOOK.md](docs/BASELINE_RUNBOOK.md) for the manual result fields.
 
 ## Ablation plan
 
