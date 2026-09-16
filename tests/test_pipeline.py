@@ -242,3 +242,38 @@ def test_pipeline_close_restores_policy_owned_resources():
 
     assert [result.action for result in results] == [Action.PLAY_MEDIA]
     assert executor.executed[-1] is Action.PLAY_MEDIA
+
+
+def test_pipeline_close_retries_cleanup_without_losing_pending_state():
+    class FlakyCleanupExecutor(FakeActionExecutor):
+        def __init__(self) -> None:
+            super().__init__()
+            self.play_attempts = 0
+
+        def execute(self, action: Action) -> ActionResult:
+            self.executed.append(action)
+            if action is Action.PLAY_MEDIA:
+                self.play_attempts += 1
+                return ActionResult(action=action, succeeded=self.play_attempts >= 3)
+            return ActionResult(action=action, succeeded=True)
+
+    executor = FlakyCleanupExecutor()
+    policy = ClosedLoopPolicy()
+    policy.transition(Intention.WAKE, DrowsinessState.DROWSY)
+    pipeline = BaselinePipeline(
+        frame_source=FakeFrameSource([]),
+        landmark_processor=FakeLandmarkProcessor([]),
+        detector=TemporalDrowsinessDetector(),
+        policy=policy,
+        action_executor=executor,
+        event_logger=InMemoryEventLogger(),
+        intention=Intention.WAKE,
+    )
+
+    first = pipeline.close(max_attempts=2)
+    second = pipeline.close(max_attempts=2)
+    third = pipeline.close(max_attempts=2)
+
+    assert [result.succeeded for result in first] == [False, False]
+    assert [result.succeeded for result in second] == [True]
+    assert third == ()

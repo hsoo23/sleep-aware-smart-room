@@ -53,9 +53,11 @@ class BaselinePipeline:
         self._clock = clock
         self._previous_state: DrowsinessState | None = None
         self._last_state: DrowsinessState | None = None
+        self._closing = False
 
     def run(self) -> Iterator[PipelineEvent]:
         """Process all available frames and yield each event after it is logged."""
+        self._closing = False
         self._policy.reset(self._intention)
         while (frame := self._frame_source.read()) is not None:
             inference_start = self._clock()
@@ -113,17 +115,29 @@ class BaselinePipeline:
         """Apply a mode change on the next observation."""
         self._intention = intention
 
-    def close(self) -> tuple[ActionResult, ...]:
-        """Execute policy-owned cleanup actions; repeated calls are safe."""
-        self._policy.reset(self._intention)
-        transition = self._policy.transition(
-            self._intention, self._last_state or DrowsinessState.NO_FACE
-        )
-        results = tuple(self._execute(action) for action in transition.actions)
-        self._policy.acknowledge(
-            transition, tuple(result.succeeded for result in results)
-        )
-        return results
+    def close(self, max_attempts: int = 2) -> tuple[ActionResult, ...]:
+        """Retry policy-owned cleanup without discarding failures between calls."""
+        if max_attempts < 1:
+            raise ValueError("max_attempts must be positive")
+        if not self._closing:
+            self._policy.reset(self._intention)
+            self._closing = True
+
+        attempted: list[ActionResult] = []
+        for _ in range(max_attempts):
+            transition = self._policy.transition(
+                self._intention, self._last_state or DrowsinessState.NO_FACE
+            )
+            if not transition.actions:
+                break
+            results = tuple(self._execute(action) for action in transition.actions)
+            attempted.extend(results)
+            self._policy.acknowledge(
+                transition, tuple(result.succeeded for result in results)
+            )
+            if all(result.succeeded for result in results):
+                break
+        return tuple(attempted)
 
     def _execute(self, action: Action) -> ActionResult:
         start = self._clock()
