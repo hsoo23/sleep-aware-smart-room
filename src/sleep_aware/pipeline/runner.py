@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterator
-
-import numpy as np
+from time import perf_counter
 
 from sleep_aware.control import Action, ClosedLoopPolicy, Intention
-from sleep_aware.detection import calculate_ear
+from sleep_aware.detection import calculate_eye_ears
 
 from .contracts import (
     ActionExecutor,
@@ -16,17 +15,9 @@ from .contracts import (
     FrameSource,
     LandmarkProcessor,
 )
-from .models import ActionResult, EyeLandmarks, PipelineEvent, Point
+from .models import ActionResult, EyeLandmarks, PipelineEvent
 
-
-def _eye_array(points: tuple[Point, Point, Point, Point, Point, Point]) -> np.ndarray:
-    return np.asarray([(point.x, point.y) for point in points], dtype=float)
-
-
-def _mean_ear(landmarks: EyeLandmarks) -> float:
-    left = calculate_ear(_eye_array(landmarks.left_eye))
-    right = calculate_ear(_eye_array(landmarks.right_eye))
-    return (left + right) / 2.0
+EarResult = float | tuple[float, float, float]
 
 
 class BaselinePipeline:
@@ -42,7 +33,8 @@ class BaselinePipeline:
         action_executor: ActionExecutor,
         event_logger: EventLogger,
         intention: Intention,
-        ear_calculator: Callable[[EyeLandmarks], float] = _mean_ear,
+        ear_calculator: Callable[[EyeLandmarks], EarResult] = calculate_eye_ears,
+        latency_clock: Callable[[], float] = perf_counter,
     ) -> None:
         self._frame_source = frame_source
         self._landmark_processor = landmark_processor
@@ -52,13 +44,27 @@ class BaselinePipeline:
         self._event_logger = event_logger
         self._intention = intention
         self._ear_calculator = ear_calculator
+        self._latency_clock = latency_clock
 
     def run(self) -> Iterator[PipelineEvent]:
         """Process all available frames and yield each event after it is logged."""
         while (frame := self._frame_source.read()) is not None:
+            landmark_started = self._latency_clock()
             landmarks = self._landmark_processor.process(frame)
-            ear = self._ear_calculator(landmarks) if landmarks is not None else None
+            landmark_latency_ms = (self._latency_clock() - landmark_started) * 1_000
+
+            inference_started = self._latency_clock()
+            left_ear: float | None = None
+            right_ear: float | None = None
+            ear: float | None = None
+            if landmarks is not None:
+                ear_result = self._ear_calculator(landmarks)
+                if isinstance(ear_result, tuple):
+                    left_ear, right_ear, ear = ear_result
+                else:
+                    ear = ear_result
             state = self._detector.update(frame.timestamp, ear)
+            inference_latency_ms = (self._latency_clock() - inference_started) * 1_000
             actions = tuple(self._policy.decide(self._intention, state))
             results = tuple(self._execute(action) for action in actions)
             event = PipelineEvent(
@@ -68,6 +74,10 @@ class BaselinePipeline:
                 state=state,
                 actions=actions,
                 action_results=results,
+                left_ear=left_ear,
+                right_ear=right_ear,
+                landmark_latency_ms=landmark_latency_ms,
+                inference_latency_ms=inference_latency_ms,
             )
             self._event_logger.log(event)
             yield event

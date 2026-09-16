@@ -99,3 +99,26 @@ def test_no_face_is_forwarded_as_missing_ear():
     assert event.state is DrowsinessState.NO_FACE
     assert event.actions == ()
     assert event.action_results == ()
+
+
+def test_pipeline_records_ear_components_and_processing_latencies():
+    times = iter((1.0, 1.012, 2.0, 2.003))
+    open_eye = EyeLandmarks(_eye(0.6), _eye(0.4))
+    pipeline = BaselinePipeline(
+        frame_source=FakeFrameSource([Frame(0, 0.0, object())]),
+        landmark_processor=FakeLandmarkProcessor([open_eye]),
+        detector=TemporalDrowsinessDetector(),
+        policy=ClosedLoopPolicy(),
+        action_executor=FakeActionExecutor(),
+        event_logger=InMemoryEventLogger(),
+        intention=Intention.WAKE,
+        latency_clock=lambda: next(times),
+    )
+
+    event = next(pipeline.run())
+
+    assert event.left_ear == pytest.approx(0.3)
+    assert event.right_ear == pytest.approx(0.2)
+    assert event.ear == pytest.approx(0.25)
+    assert event.landmark_latency_ms == pytest.approx(12.0)
+    assert event.inference_latency_ms == pytest.approx(3.0)
