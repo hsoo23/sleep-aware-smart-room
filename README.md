@@ -110,6 +110,28 @@ Camera index and requested resolution default to `CAMERA_INDEX`,
 `CAMERA_WIDTH`, and `CAMERA_HEIGHT` from the environment. See
 [docs/BASELINE_RUNBOOK.md](docs/BASELINE_RUNBOOK.md) for the manual result fields.
 
+## Baseline CLI
+
+하드웨어 없이 전체 폐루프와 구조화 로그를 재현하려면 다음 명령을 사용합니다.
+
+```bash
+sleep-aware --input mock --actions mock --intention sleep
+sleep-aware --input mock --actions mock --intention wake
+```
+
+두 mock 실행은 고정된 `AWAKE → EYES_CLOSED → DROWSY → AWAKE` 시나리오를
+사용하고, Sleep/Wake 의도별 동작과 run metadata·Git commit이 포함된 JSONL 로그를
+`results/logs/`에 기록합니다. 실제 카메라와 Raspberry Pi HTTP 동작을 연결하려면
+host extra와 환경 변수를 설정한 뒤 다음과 같이 실행합니다.
+
+```bash
+sleep-aware --input camera --actions real --intention wake --display
+```
+
+화면에서 `q` 또는 Escape를 누르면 카메라·MediaPipe·표시 창이 정리된 뒤 종료됩니다.
+장치 없이 카메라 경로만 확인할 때는 `--actions mock`을 사용하고, 표시 창이 필요 없으면
+`--no-display`를 지정합니다.
+
 ## Ablation plan
 
 | Stage | Detector |

@@ -111,7 +111,7 @@ class BaselinePipeline:
         start = self._clock()
         try:
             result = self._action_executor.execute(action)
-        except Exception as error:  # Device failures must not stop re-observation.
+        except Exception as error:  # noqa: BLE001 - keep re-observing after device failures.
             result = ActionResult(action=action, succeeded=False, detail=str(error))
         if result.action is not action:
             raise ValueError(

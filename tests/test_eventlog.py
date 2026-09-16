@@ -95,9 +95,8 @@ def test_logger_writes_valid_run_start_frame_and_run_end(tmp_path):
 
 
 def test_logger_records_failed_run_and_refuses_to_overwrite(tmp_path):
-    with pytest.raises(RuntimeError):
-        with JsonlEventLogger(tmp_path, _metadata()) as logger:
-            raise RuntimeError("camera lost")
+    with pytest.raises(RuntimeError), JsonlEventLogger(tmp_path, _metadata()) as logger:
+        raise RuntimeError("camera lost")
 
     end = _read(logger.path)[-1]
     assert end["status"] == "failed"

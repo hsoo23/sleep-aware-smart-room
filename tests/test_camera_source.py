@@ -132,10 +132,12 @@ def test_context_manager_always_releases_capture():
     """An exceptional exit releases once and prevents subsequent reads."""
     capture = FakeCapture()
 
-    with pytest.raises(RuntimeError, match="stop"):
-        with OpenCVCameraSource(camera_index=0, opencv=FakeOpenCV(capture)) as source:
-            assert source.camera_index == 0
-            raise RuntimeError("stop")
+    with (
+        pytest.raises(RuntimeError, match="stop"),
+        OpenCVCameraSource(camera_index=0, opencv=FakeOpenCV(capture)) as source,
+    ):
+        assert source.camera_index == 0
+        raise RuntimeError("stop")
 
     assert capture.release_count == 1
     source.close()

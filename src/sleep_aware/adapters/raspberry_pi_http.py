@@ -12,7 +12,6 @@ import requests
 from sleep_aware.control import Action
 from sleep_aware.pipeline.models import ActionResult
 
-
 ACTION_ENDPOINTS: Mapping[Action, str] = {
     Action.PAUSE_MEDIA: "/actions/media/pause",
     Action.PLAY_MEDIA: "/actions/media/play",

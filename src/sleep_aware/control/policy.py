@@ -101,7 +101,7 @@ class ClosedLoopPolicy:
     ) -> PolicyTransition:
         """Observe a state and return the complete policy transition record."""
         if not isinstance(intention, Intention):
-            raise ValueError(f"unsupported intention: {intention}")
+            raise TypeError(f"unsupported intention: {intention}")
 
         if self._pending_reset_reason is not None:
             return self._complete_reset(intention, state)

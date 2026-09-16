@@ -6,7 +6,7 @@ import importlib
 import time
 from collections.abc import Callable
 from types import TracebackType
-from typing import Any
+from typing import Any, Self
 
 from sleep_aware.pipeline.models import Frame
 
@@ -114,7 +114,7 @@ class OpenCVCameraSource:
         self._closed = True
         self._capture.release()
 
-    def __enter__(self) -> OpenCVCameraSource:
+    def __enter__(self) -> Self:
         """Return this opened source when entering a context manager."""
         return self
 
