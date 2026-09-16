@@ -31,6 +31,33 @@ python -m pip install -e '.[dev]'
 pytest -q
 ```
 
+## Phase 2 CLI 실행
+
+먼저 하드웨어 없는 두 폐루프를 실행합니다.
+
+```bash
+sleep-aware --input mock --actions mock --intention sleep
+sleep-aware --input mock --actions mock --intention wake
+```
+
+각 명령의 마지막 출력은 JSONL 로그 경로입니다. 두 로그 모두 다음을 확인합니다.
+
+- `run_start`에 run ID, detector 설정, 플랫폼, Git commit이 있다.
+- 상태가 `AWAKE → EYES_CLOSED → DROWSY → AWAKE` 순서로 나타난다.
+- Sleep은 `pause_media, light_off, start_session` 후 `end_session`을 실행한다.
+- Wake는 `pause_media, light_on, buzzer_alert` 후 `play_media`를 실행한다.
+- 마지막 `run_end.status`가 `completed`이다.
+
+실제 카메라와 Raspberry Pi는 아래 명령으로 검증합니다.
+
+```bash
+sleep-aware --input camera --actions real --intention sleep --display
+sleep-aware --input camera --actions real --intention wake --display
+```
+
+`q` 또는 Escape로 정상 종료하고, 실패 시 CLI의 오류와 JSONL `run_end`를 함께
+기록합니다. mock 성공을 실제 카메라·HTTP·GPIO 성공으로 보고하지 않습니다.
+
 The unit tests cover EAR geometry, time-based temporal state transitions, and
 the MediaPipe adapter boundary using a fake native model, and the pure
 intention-aware policy. They do not validate a physical camera or devices.
@@ -115,3 +142,6 @@ See [LOGGING_SCHEMA.md](LOGGING_SCHEMA.md) for the record format.
 - [ ] The user is observed again after actuation.
 - [ ] Sleep Aid records the end event/report, or Wake-up resumes media.
 - [ ] The run records date, mode, detector version, hardware, and commit hash.
+
+상세 시연 기록과 연구 질문 연결은 [DEMO_VALIDATION.md](DEMO_VALIDATION.md)를
+사용합니다.
