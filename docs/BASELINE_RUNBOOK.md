@@ -87,6 +87,17 @@ requested resolution, returned image shape, frame count, result, and Git commit
 in [CAMERA_SMOKE_RESULTS.md](CAMERA_SMOKE_RESULTS.md). Do not treat this manual
 result as a CI check.
 
+The unit tests also cover the structured log schema, but do not validate
+physical devices.
+
+To produce a hardware-free structured log under the Git-ignored `results/logs/`:
+
+```bash
+python -m sleep_aware.eventlog.mock_run
+```
+
+See [LOGGING_SCHEMA.md](LOGGING_SCHEMA.md) for the record format.
+
 ## Demonstration checklist
 
 - [ ] The mode is selected before detection starts.

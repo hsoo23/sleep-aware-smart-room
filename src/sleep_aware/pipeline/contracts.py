@@ -25,6 +25,11 @@ class LandmarkProcessor(Protocol):
 class DrowsinessDetector(Protocol):
     """Classify a timestamped EAR observation."""
 
+    @property
+    def ear_threshold(self) -> float | None:
+        """Threshold applied by the latest update, or ``None`` before one is available."""
+        ...
+
     def update(self, timestamp: float, ear: float | None) -> DrowsinessState: ...
 
 

@@ -39,6 +39,8 @@ flowchart LR
 - `adapters`: hardware-free mock and bounded Raspberry Pi HTTP action executors
 - `capture`: OpenCV camera adapter and deterministic fake frame source; camera
   acquisition errors stop the run and the adapter owns `VideoCapture` cleanup
+- `eventlog`: JSONL `EventLogger` implementation, run metadata, schema validation,
+  and redaction; see [LOGGING_SCHEMA.md](LOGGING_SCHEMA.md)
 - `config`: environment-specific values and experimental parameters
 - `legacy`: original submitted prototype kept as a reproducible reference
 - `data`: consented experiment data; raw data is intentionally ignored by Git
@@ -91,6 +93,13 @@ detector에 `ear=None`을 전달하여 `NO_FACE`를 생성합니다. 반면 입�
 기록합니다. landmark latency는 `LandmarkProcessor.process` 구간이고 inference
 latency는 EAR 계산과 시간 기반 상태 갱신 구간입니다. policy, 장치 실행, logger
 자체의 소요 시간은 두 측정값에 포함하지 않습니다.
+
+`BaselinePipeline` accepts a `clock` (default `time.monotonic`) that must be the
+clock used for `Frame.timestamp`. It measures, per frame, inference latency
+(landmarks, EAR, detection), control latency (policy and all actions), each
+action's execution latency, and end-to-end latency from capture to the last
+action result. Logging time is excluded. Wall-clock time is added only by the
+event logger for correlation, never for durations.
 
 ## Error policy
 

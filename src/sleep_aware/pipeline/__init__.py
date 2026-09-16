@@ -13,7 +13,14 @@ from .face_mesh import (
     FaceMeshProcessingError,
     MediaPipeFaceMeshProcessor,
 )
-from .models import ActionResult, EyeLandmarks, Frame, PipelineEvent, Point
+from .models import (
+    ActionResult,
+    EyeLandmarks,
+    Frame,
+    LatencyBreakdown,
+    PipelineEvent,
+    Point,
+)
 from .runner import BaselinePipeline
 
 __all__ = [
@@ -29,6 +36,7 @@ __all__ = [
     "LEFT_EYE_INDICES",
     "LandmarkProcessor",
     "MediaPipeFaceMeshProcessor",
+    "LatencyBreakdown",
     "PipelineEvent",
     "Point",
     "RIGHT_EYE_INDICES",
