@@ -277,3 +277,79 @@ def test_pipeline_close_retries_cleanup_without_losing_pending_state():
     assert [result.succeeded for result in first] == [False, False]
     assert [result.succeeded for result in second] == [True]
     assert third == ()
+
+
+class CleanupFailingExecutor(FakeActionExecutor):
+    def __init__(self) -> None:
+        super().__init__()
+        self.cleanup_succeeds = False
+
+    def execute(self, action: Action) -> ActionResult:
+        self.executed.append(action)
+        if action is Action.PLAY_MEDIA:
+            return ActionResult(action=action, succeeded=self.cleanup_succeeds)
+        return ActionResult(action=action, succeeded=True)
+
+
+def _cleanup_pipeline(executor: FakeActionExecutor, frames: list[Frame]) -> BaselinePipeline:
+    policy = ClosedLoopPolicy()
+    policy.transition(Intention.WAKE, DrowsinessState.DROWSY)
+    open_eye = EyeLandmarks(_eye(1.0), _eye(1.0))
+    return BaselinePipeline(
+        frame_source=FakeFrameSource(frames),
+        landmark_processor=FakeLandmarkProcessor([open_eye] * len(frames)),
+        detector=TemporalDrowsinessDetector(recovery_seconds=0.0),
+        policy=policy,
+        action_executor=executor,
+        event_logger=InMemoryEventLogger(),
+        intention=Intention.WAKE,
+    )
+
+
+def test_pipeline_refuses_new_run_while_previous_cleanup_fails():
+    executor = CleanupFailingExecutor()
+    pipeline = _cleanup_pipeline(executor, [Frame(0, 1.0, object())])
+    pipeline.close(max_attempts=1)
+
+    with pytest.raises(RuntimeError, match="cleanup did not complete"):
+        next(pipeline.run())
+    assert executor.executed == [Action.PLAY_MEDIA] * 3
+
+
+def test_pipeline_finishes_previous_cleanup_before_new_run():
+    executor = CleanupFailingExecutor()
+    pipeline = _cleanup_pipeline(executor, [Frame(0, 1.0, object())])
+    pipeline.close(max_attempts=1)
+    executor.cleanup_succeeds = True
+
+    event = next(pipeline.run())
+
+    assert executor.executed == [Action.PLAY_MEDIA, Action.PLAY_MEDIA]
+    assert event.actions == ()
+    assert event.previous_state is None
+
+
+def test_pipeline_resets_detection_history_for_each_run():
+    frames: deque[Frame] = deque([Frame(0, 1.0, object())])
+
+    class QueueFrameSource:
+        def read(self) -> Frame | None:
+            return frames.popleft() if frames else None
+
+    open_eye = EyeLandmarks(_eye(1.0), _eye(1.0))
+    pipeline = BaselinePipeline(
+        frame_source=QueueFrameSource(),
+        landmark_processor=FakeLandmarkProcessor([open_eye, open_eye]),
+        detector=TemporalDrowsinessDetector(recovery_seconds=0.0),
+        policy=ClosedLoopPolicy(),
+        action_executor=FakeActionExecutor(),
+        event_logger=InMemoryEventLogger(),
+        intention=Intention.WAKE,
+    )
+    list(pipeline.run())
+    frames.append(Frame(1, 2.0, object()))
+
+    second = list(pipeline.run())
+
+    assert second[0].previous_state is None
+    assert second[0].state_changed

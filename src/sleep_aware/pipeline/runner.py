@@ -57,8 +57,16 @@ class BaselinePipeline:
 
     def run(self) -> Iterator[PipelineEvent]:
         """Process all available frames and yield each event after it is logged."""
+        if self._closing:
+            self.close()
+            if self._policy.has_pending_cleanup:
+                raise RuntimeError(
+                    "previous run cleanup did not complete; refusing to start a new run"
+                )
         self._closing = False
         self._policy.reset(self._intention)
+        self._previous_state = None
+        self._last_state = None
         while (frame := self._frame_source.read()) is not None:
             inference_start = self._clock()
             landmark_started = self._latency_clock()

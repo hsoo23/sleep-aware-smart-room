@@ -25,3 +25,20 @@
 각 `PipelineEvent.policy_transition`에는 관찰 상태, 전후 phase, 전이 사유와 action이
 함께 기록됩니다. action 실행 실패와 무관하게 다음 프레임을 재관찰하며, 실행 결과는
 기존 `action_results`에 별도로 남습니다.
+
+## 실행 결과 확인과 재시도
+
+`BaselinePipeline`은 실행 결과를 `ClosedLoopPolicy.acknowledge()`로 정책에 돌려줍니다.
+실패한 action만 다음 관찰에서 `ACTION_RETRY` transition으로 다시 생성되며, 성공이
+확인될 때까지 새 transition은 만들지 않습니다.
+
+`reset()`은 에피소드 중 실패한 action(`LIGHT_ON`, `BUZZER_ALERT` 등)의 재시도는
+버리지만, 소유 자원을 해제하는 cleanup action(`END_SESSION`, `PLAY_MEDIA`)의 재시도는
+유지합니다. `ClosedLoopPolicy.has_pending_cleanup`은 이런 미완료 cleanup이나 아직
+해제하지 않은 소유권이 남아 있는지 알려 줍니다.
+
+`BaselinePipeline.close()`가 재시도 한도 안에 cleanup을 끝내지 못하면, 다음 `run()`은
+시작 전에 남은 cleanup을 다시 시도합니다. 그래도 실패하면 `RuntimeError`로 새 실행을
+거부하므로 외부 장치 상태가 정리되지 않은 채 다음 실행이 시작되지 않습니다. `run()`은
+매 실행마다 이전 실행의 검출 상태 기록도 초기화합니다. CLI 카메라 실행은 종료 시
+cleanup이 끝나지 않았으면 실패 코드로 종료해 장치 상태를 직접 확인하도록 안내합니다.

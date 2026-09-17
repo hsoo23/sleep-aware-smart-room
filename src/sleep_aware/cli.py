@@ -122,11 +122,12 @@ def run_camera(args: argparse.Namespace) -> Path:
             source = DisplayFrameSource(source, cv2)
             stack.callback(source.close)
         logger = stack.enter_context(JsonlEventLogger(args.log_dir, metadata))
+        policy = ClosedLoopPolicy()
         pipeline = BaselinePipeline(
             frame_source=source,
             landmark_processor=processor,
             detector=detector,
-            policy=ClosedLoopPolicy(),
+            policy=policy,
             action_executor=executor,
             event_logger=logger,
             intention=Intention(args.intention),
@@ -136,6 +137,8 @@ def run_camera(args: argparse.Namespace) -> Path:
                 pass
         finally:
             pipeline.close()
+        if policy.has_pending_cleanup:
+            raise RuntimeError("종료 정리 동작이 완료되지 않았습니다. 장치 상태를 직접 확인하세요")
         return logger.path
 
 

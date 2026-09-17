@@ -28,6 +28,10 @@ class Action(str, Enum):
     END_SESSION = "end_session"
 
 
+# Actions that release resources owned by the policy; they survive a reset.
+_CLEANUP_ACTIONS = frozenset({Action.END_SESSION, Action.PLAY_MEDIA})
+
+
 class PolicyPhase(str, Enum):
     """Mode-local phase of one drowsiness episode."""
 
@@ -77,14 +81,28 @@ class ClosedLoopPolicy:
     def phase(self) -> PolicyPhase:
         return self._phase
 
+    @property
+    def has_pending_cleanup(self) -> bool:
+        """Whether owned external state still needs a cleanup action to succeed."""
+        return bool(
+            self._pending_retry_actions
+            or self._sleep_session_active
+            or self._media_paused_by_system
+            or self._pending_reset_reason is not None
+        )
+
     def reset(self, intention: Intention | None = None) -> None:
         """Request a clean lifecycle boundary without losing owned resources."""
-        self._pending_retry_actions = ()
+        # Failed cleanup must still be retried; failed episode actions are dropped.
+        pending_cleanup = tuple(
+            action for action in self._pending_retry_actions if action in _CLEANUP_ACTIONS
+        )
         if self._sleep_session_active or self._media_paused_by_system:
             self._pending_intention = intention
             self._pending_reset_reason = TransitionReason.RESET
-            return
-        self._clear(intention)
+        else:
+            self._clear(intention)
+        self._pending_retry_actions = pending_cleanup
 
     def _clear(self, intention: Intention | None) -> None:
         """Clear internal state after no cleanup is needed or cleanup is emitted."""

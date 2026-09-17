@@ -50,6 +50,12 @@ FACE_MESH_MIN_DETECTION_CONFIDENCE=0.5
 FACE_MESH_MIN_TRACKING_CONFIDENCE=0.5
 ```
 
+Face Mesh processor는 OpenCV와 MediaPipe가 필요하므로 먼저 `host` extra를 설치합니다.
+
+```bash
+python -m pip install -e '.[dev,host]'
+```
+
 Face Mesh processor는 native resource를 소유하므로 아래처럼 종료를 보장해야 합니다.
 
 ```python

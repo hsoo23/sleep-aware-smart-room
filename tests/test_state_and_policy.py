@@ -151,3 +151,31 @@ def test_policy_retries_only_failed_actions_after_acknowledgement():
     assert retry.actions == (Action.LIGHT_ON,)
     policy.acknowledge(retry, (True,))
     assert policy.transition(Intention.WAKE, DrowsinessState.DROWSY).actions == ()
+
+
+def test_reset_keeps_failed_cleanup_for_retry():
+    policy = ClosedLoopPolicy()
+    policy.transition(Intention.WAKE, DrowsinessState.DROWSY)
+    cleanup = policy.transition(Intention.WAKE, DrowsinessState.AWAKE)
+    policy.acknowledge(cleanup, (False,))
+
+    policy.reset(Intention.WAKE)
+
+    assert policy.has_pending_cleanup
+    retry = policy.transition(Intention.WAKE, DrowsinessState.AWAKE)
+    assert retry.reason is TransitionReason.ACTION_RETRY
+    assert retry.actions == (Action.PLAY_MEDIA,)
+    policy.acknowledge(retry, (True,))
+    assert not policy.has_pending_cleanup
+
+
+def test_reset_drops_failed_episode_actions_but_keeps_owned_cleanup():
+    policy = ClosedLoopPolicy()
+    transition = policy.transition(Intention.WAKE, DrowsinessState.DROWSY)
+    policy.acknowledge(transition, (True, True, False))
+
+    policy.reset(Intention.WAKE)
+    cleanup = policy.transition(Intention.WAKE, DrowsinessState.AWAKE)
+
+    assert cleanup.reason is TransitionReason.RESET
+    assert cleanup.actions == (Action.PLAY_MEDIA,)
