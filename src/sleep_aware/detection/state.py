@@ -23,6 +23,13 @@ class TemporalDrowsinessDetector:
     _state: DrowsinessState = DrowsinessState.NO_FACE
     _has_observed_face: bool = False
 
+    def reset(self) -> None:
+        """Forget temporal history so a new run starts from its first observation."""
+        self._closed_since = None
+        self._open_since = None
+        self._state = DrowsinessState.NO_FACE
+        self._has_observed_face = False
+
     def update(self, timestamp: float, ear: float | None) -> DrowsinessState:
         if ear is None:
             self._closed_since = None

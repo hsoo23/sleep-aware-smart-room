@@ -30,6 +30,10 @@ class DrowsinessDetector(Protocol):
         """Threshold applied by the latest update, or ``None`` before one is available."""
         ...
 
+    def reset(self) -> None:
+        """Discard temporal history before a new run."""
+        ...
+
     def update(self, timestamp: float, ear: float | None) -> DrowsinessState: ...
 
 

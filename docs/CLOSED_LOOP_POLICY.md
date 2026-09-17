@@ -41,6 +41,10 @@
 - cleanup action(`END_SESSION`, `PLAY_MEDIA`)은 성공할 때까지 유지합니다. 단, 새
   에피소드가 `PAUSE_MEDIA`를 실행하면 이전 `PLAY_MEDIA` 재시도는 의미가 없으므로 버리고,
   새 에피소드의 회복 시점에 다시 재생합니다.
+- `END_SESSION` 재시도가 남은 상태에서 새 Sleep 에피소드가 시작되면 `START_SESSION`을
+  보내지 않고 이전 세션을 이어 갑니다. 재시도한 `END_SESSION`이 새 세션을 잘못 종료하는
+  순서 문제를 막고, 세션은 새 에피소드의 회복 시점에 한 번 종료됩니다. 정리 재시도 때문에
+  Sleep/Wake 동작 자체를 보류하지는 않습니다.
 
 `reset()`은 에피소드 중 실패한 action(`LIGHT_ON`, `BUZZER_ALERT` 등)의 재시도는
 버리지만, 소유 자원을 해제하는 cleanup action(`END_SESSION`, `PLAY_MEDIA`)의 재시도는
@@ -50,5 +54,7 @@
 `BaselinePipeline.close()`가 재시도 한도 안에 cleanup을 끝내지 못하면, 다음 `run()`은
 시작 전에 남은 cleanup을 다시 시도합니다. 그래도 실패하면 `RuntimeError`로 새 실행을
 거부하므로 외부 장치 상태가 정리되지 않은 채 다음 실행이 시작되지 않습니다. `run()`은
-매 실행마다 이전 실행의 검출 상태 기록도 초기화합니다. CLI 카메라 실행은 종료 시
-cleanup이 끝나지 않았으면 실패 코드로 종료해 장치 상태를 직접 확인하도록 안내합니다.
+매 실행마다 이전 실행의 검출 상태 기록과 `DrowsinessDetector.reset()`으로 검출기의 시간
+기록도 초기화합니다. CLI 카메라 실행과 mock 실행은
+종료 시 cleanup이 끝나지 않았으면 Ctrl+C나 실행 오류로 끝난 경우에도 실패로 보고해 장치
+상태를 직접 확인하도록 안내합니다.

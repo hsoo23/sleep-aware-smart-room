@@ -209,20 +209,38 @@ def test_episode_action_retries_are_bounded():
     assert retried == [(Action.BUZZER_ALERT,), (Action.BUZZER_ALERT,), (), ()]
 
 
-def test_failed_cleanup_is_retried_before_new_episode_actions():
+def test_new_sleep_episode_continues_session_that_failed_to_end():
     policy = ClosedLoopPolicy()
     policy.transition(Intention.SLEEP, DrowsinessState.DROWSY)
     recovery = policy.transition(Intention.SLEEP, DrowsinessState.AWAKE)
     policy.acknowledge(recovery, (False,))
 
     next_episode = policy.transition(Intention.SLEEP, DrowsinessState.DROWSY)
+    policy.acknowledge(next_episode, (True, True))
 
     assert next_episode.reason is TransitionReason.DROWSY_DETECTED
-    assert next_episode.actions == (
+    assert next_episode.actions == (Action.PAUSE_MEDIA, Action.LIGHT_OFF)
+    assert Action.END_SESSION not in policy.transition(
+        Intention.SLEEP, DrowsinessState.DROWSY
+    ).actions
+    assert policy.transition(Intention.SLEEP, DrowsinessState.AWAKE).actions == (
+        Action.END_SESSION,
+    )
+
+
+def test_failed_session_end_is_retried_before_wake_episode_actions():
+    policy = ClosedLoopPolicy()
+    policy.transition(Intention.SLEEP, DrowsinessState.DROWSY)
+    recovery = policy.transition(Intention.SLEEP, DrowsinessState.AWAKE)
+    policy.acknowledge(recovery, (False,))
+
+    wake_episode = policy.transition(Intention.WAKE, DrowsinessState.DROWSY)
+
+    assert wake_episode.actions == (
         Action.END_SESSION,
         Action.PAUSE_MEDIA,
-        Action.LIGHT_OFF,
-        Action.START_SESSION,
+        Action.LIGHT_ON,
+        Action.BUZZER_ALERT,
     )
 
 
@@ -256,3 +274,12 @@ def test_mode_change_keeps_failed_cleanup_retry():
 
     assert changed.actions == (Action.PLAY_MEDIA,)
     assert policy.has_pending_cleanup
+
+
+def test_detector_reset_forgets_closed_eye_history():
+    detector = TemporalDrowsinessDetector(drowsy_seconds=2.0)
+    detector.update(0.0, 0.1)
+
+    detector.reset()
+
+    assert detector.update(5.0, 0.1) is DrowsinessState.EYES_CLOSED

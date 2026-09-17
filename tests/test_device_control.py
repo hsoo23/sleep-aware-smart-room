@@ -190,6 +190,31 @@ def test_composite_routes_all_actions_and_closes_shared_backends_once():
     assert (media.close_count, device.close_count, session.close_count) == (1, 1, 1)
 
 
+def test_composite_closes_remaining_backends_after_a_close_failure():
+    class FailingBackend(StubBackend):
+        def close(self) -> None:
+            super().close()
+            raise OSError("gpio cleanup failed")
+
+    media = StubBackend([])
+    device = FailingBackend([])
+    session = StubBackend([])
+    routes = {
+        Action.PAUSE_MEDIA: media,
+        Action.PLAY_MEDIA: media,
+        Action.LIGHT_OFF: device,
+        Action.LIGHT_ON: device,
+        Action.BUZZER_ALERT: device,
+        Action.START_SESSION: session,
+        Action.END_SESSION: session,
+    }
+
+    with pytest.raises(OSError, match="gpio cleanup failed"):
+        CompositeActionExecutor(routes).close()
+
+    assert (media.close_count, device.close_count, session.close_count) == (1, 1, 1)
+
+
 def test_composite_requires_a_route_for_every_action():
     with pytest.raises(ValueError, match="missing action routes"):
         CompositeActionExecutor({})

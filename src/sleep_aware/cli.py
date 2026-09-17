@@ -66,6 +66,17 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _close_pipeline(pipeline: BaselinePipeline, policy: ClosedLoopPolicy) -> None:
+    """Run policy cleanup and fail loudly if external device state may be left behind.
+
+    Called from ``finally`` so the check also runs on Ctrl+C or pipeline errors; the
+    original exception stays attached as ``__context__``.
+    """
+    pipeline.close()
+    if policy.has_pending_cleanup:
+        raise RuntimeError("종료 정리 동작이 완료되지 않았습니다. 장치 상태를 직접 확인하세요")
+
+
 def run_camera(args: argparse.Namespace) -> Path:
     """Run the real camera pipeline and return the structured log path."""
     if args.actions == "real":
@@ -101,6 +112,9 @@ def run_camera(args: argparse.Namespace) -> Path:
     )
 
     with ExitStack() as stack:
+        close_executor = getattr(executor, "close", None)
+        if close_executor is not None:
+            stack.callback(close_executor)
         # Open the log first so camera or MediaPipe start-up failures still get run_end.
         logger = stack.enter_context(JsonlEventLogger(args.log_dir, metadata))
         source: Any = stack.enter_context(
@@ -137,9 +151,7 @@ def run_camera(args: argparse.Namespace) -> Path:
             for _ in pipeline.run():
                 pass
         finally:
-            pipeline.close()
-        if policy.has_pending_cleanup:
-            raise RuntimeError("종료 정리 동작이 완료되지 않았습니다. 장치 상태를 직접 확인하세요")
+            _close_pipeline(pipeline, policy)
         return logger.path
 
 

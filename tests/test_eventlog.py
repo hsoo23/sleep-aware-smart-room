@@ -141,6 +141,24 @@ def test_logger_removes_file_when_run_start_cannot_be_written(tmp_path):
     assert logger.path.exists()
 
 
+def test_logger_redacts_windows_user_paths_and_local_hostnames(tmp_path):
+    detail = r"open C:\Users\alice\project\log.txt failed; raspberrypi.local:5050 refused"
+    with JsonlEventLogger(tmp_path, _metadata()) as logger:
+        logger.log(_event(detail))
+
+    text = logger.path.read_text(encoding="utf-8")
+    for secret in ("alice", "raspberrypi"):
+        assert secret not in text
+    reason = _read(logger.path)[1]["actions"][1]["failure_reason"]
+    assert reason == "open <path> failed; <host>:5050 refused"
+
+
+def test_redact_keeps_public_domains_and_ordinary_words():
+    assert redact("see docs.python.org, then retry at home") == (
+        "see docs.python.org, then retry at home"
+    )
+
+
 def test_redact_keeps_ordinary_failure_text():
     assert redact("relay timeout after 12:30:45 (attempt 2/3)") == (
         "relay timeout after 12:30:45 (attempt 2/3)"
@@ -214,6 +232,17 @@ def test_mock_pipeline_run_produces_valid_log(tmp_path, monkeypatch):
     for frame in frames:
         assert frame["end_to_end_latency_ms"] >= frame["inference_latency_ms"]
         assert frame["end_to_end_latency_ms"] >= frame["control_latency_ms"]
+
+
+def test_mock_run_records_failure_when_cleanup_cannot_complete(tmp_path, monkeypatch):
+    monkeypatch.setattr(mock_run, "settings", replace(settings, drowsy_seconds=10.0))
+
+    with pytest.raises(RuntimeError, match="cleanup"):
+        mock_run.run_mock(tmp_path, Intention.WAKE, failing_action=Action.PLAY_MEDIA)
+
+    (path,) = tmp_path.glob("*.jsonl")
+    end = _read(path)[-1]
+    assert (end["record_type"], end["status"]) == ("run_end", "failed")
 
 
 def test_run_ids_are_sortable_and_unique():
