@@ -16,7 +16,10 @@
 - [ ] 얼굴 있음, 눈 감김, 얼굴 없음이 화면과 로그에서 구분된다.
 - [ ] Sleep: 미디어 일시정지, 조명 끄기, 세션 시작·종료를 확인했다.
 - [ ] Wake: 미디어 일시정지, 조명 켜기, 부저, 미디어 재생을 확인했다.
-- [ ] Raspberry Pi HTTP 실패가 timeout 또는 상태 코드로 기록된다.
+- [ ] Raspberry Pi HTTP 실패가 네 가지 유형으로 구분되어 기록된다. 실행기 경고 로그의
+  `error_reason`과 JSONL `failure_reason`은 각각 `timeout`/`request timed out`,
+  `connection_error`/`could not connect to device`, `request_error`/`HTTP request failed`,
+  `http_status`/`device returned HTTP <code>`이다.
 - [ ] `q`/Escape와 예외 종료 뒤 카메라·MediaPipe·장치가 안전 상태다.
 - [ ] 참가자 영상, 이메일, IP, 로컬 경로가 저장소와 공유 로그에 없다.
 
