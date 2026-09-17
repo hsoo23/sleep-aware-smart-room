@@ -41,21 +41,32 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    I{입력 선택} -->|mock| SF[SyntheticFrameSource]
-    I -->|camera| OC[OpenCVCameraSource]
-    SF --> LM[Synthetic landmarks]
-    OC --> MP[MediaPipe Face Mesh]
-    LM --> EAR[Fixed EAR]
-    MP --> EAR
-    EAR --> TD[Temporal detector]
-    TD --> CP[Sleep/Wake closed-loop policy]
-    CP --> AX{동작 선택}
-    AX -->|mock| MA[In-memory devices]
-    AX -->|real| HTTP[Raspberry Pi HTTP]
-    AX --> LOG[JSONL event log]
-    LOG --> RO[다음 프레임 재관찰]
-    RO --> I
+    subgraph setup[CLI 조립: 실행 시작 시 1회]
+        I{입력 선택} -->|mock| SF[SyntheticFrameSource]
+        I -->|camera| OC[OpenCVCameraSource]
+        A{동작 선택} -->|mock| MA[In-memory devices]
+        A -->|real| HTTP[Raspberry Pi HTTP]
+    end
+    subgraph loop[BaselinePipeline.run: frame마다 반복]
+        READ[선택된 FrameSource.read] --> LMK[Landmarks<br/>Synthetic 또는 MediaPipe Face Mesh]
+        LMK --> EAR[Fixed EAR]
+        EAR --> TD[Temporal detector]
+        TD --> CP[Sleep/Wake closed-loop policy]
+        CP --> EX[선택된 ActionExecutor.execute]
+        EX --> ACK[policy.acknowledge<br/>실패 action 재시도 예약]
+        ACK --> LOG[JSONL event log]
+        LOG -->|다음 frame 재관찰| READ
+    end
+    SF -.-> READ
+    OC -.-> READ
+    MA -.-> EX
+    HTTP -.-> EX
 ```
+
+입력과 동작 어댑터는 CLI가 실행 시작 시 한 번만 선택·초기화합니다. 재관찰은 입력을
+다시 선택하는 것이 아니라 이미 선택된 `FrameSource`에서 다음 frame을 `read()`하는
+반복이며, frame이 없거나 사용자가 종료하면 `BaselinePipeline.close()`가 남은 cleanup을
+실행합니다.
 
 CLI가 composition root 역할을 하며 core pipeline은 OpenCV, MediaPipe, HTTP 또는
 파일시스템 구현을 직접 import하지 않습니다. `--input mock --actions mock`은 CI와

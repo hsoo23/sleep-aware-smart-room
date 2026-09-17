@@ -33,19 +33,42 @@
 | 카메라·해상도·FPS | |
 | Raspberry Pi·relay·buzzer | |
 | JSONL 로그 경로 | |
+| Raspberry Pi FPS | |
+| Raspberry Pi CPU 사용률(평균·최대) | |
+| Raspberry Pi memory 사용량(평균·최대) | |
+| inference latency(중앙값·p95, ms) | |
+| control latency(중앙값·p95, ms) | |
+| end-to-end latency(중앙값·p95, ms) | |
+| 성능 측정 도구·별도 측정 파일 경로 | |
 | 상태 전이 결과 | |
 | action 및 복구 결과 | |
 | 실패·이상 현상 | |
 | 증거 영상/스크린샷의 비공개 보관 위치 | |
 
 실제 장치 검증을 수행하지 않았다면 빈칸 대신 `미실시`라고 기록합니다. mock 결과와
-하드웨어 결과는 같은 칸에 섞지 않습니다.
+하드웨어 결과는 같은 칸에 섞지 않습니다. CPU와 memory는 JSONL 로그에 포함되지 않으므로
+측정 도구와 결과 파일 경로를 함께 적고, Raspberry Pi에서 측정하지 않은 성능 항목은 각각
+`미실시`로 표시합니다. latency는 JSONL의 frame별 값에서 계산하며 개발 호스트 값은 이 칸에
+쓰지 않습니다.
+
+## 반복 실행 기록(RQ1)
+
+같은 mock 입력과 설정으로 최소 3회 실행하고 run별로 아래 값을 기록합니다.
+
+| run ID | Git commit | detector 설정 | 상태 sequence | action sequence | `run_end.status` | 이전 run과 일치 여부 |
+|---|---|---|---|---|---|---|
+| | | | | | | |
+
+비교 기준은 detector 설정, 상태 sequence, action sequence, `run_end.status`가 모든 run에서
+완전히 같은지입니다. run ID, wall time, latency 값은 실행마다 달라질 수 있으므로 일치 기준에
+넣지 않습니다. 반복 실행을 하지 않았다면 RQ1 증거는 단일 baseline trace로만 표기하고 재현성
+항목은 `미실시`로 기록합니다.
 
 ## 연구 질문 추적표
 
 | RQ | 질문 | Phase 2에서 확보하는 증거 | 후속 단계 |
 |---|---|---|---|
-| RQ1 | Fixed EAR baseline이 상태를 재현 가능하게 판정하는가? | 상태 순서, threshold·지속시간 설정, frame별 EAR·latency 로그 | Phase 3 detector ablation과 비교 |
+| RQ1 | Fixed EAR baseline이 상태를 재현 가능하게 판정하는가? | 같은 mock 입력·설정으로 반복 실행한 run별 상태·action sequence 일치 여부(반복 실행 기록). 반복하지 않았다면 단일 baseline trace로 한정 | Phase 3 detector ablation과 비교 |
 | RQ2 | 사용자 의도에 따라 적절한 폐루프 동작과 복구가 실행되는가? | Sleep/Wake action sequence, 성공 여부, 재관찰 후 복구 로그 | 실제 장치 반복 성공률 보고 |
 | RQ3 | edge 환경에서 실시간 실행 가능한가? | Raspberry Pi에서 측정한 FPS, CPU, memory, inference/control/end-to-end latency. 측정하지 않은 항목은 `미실시`로 기록 | 장시간 실행과 detector별 비용 비교 |
 | RQ4 | 조명·거리·각도 및 사용자 차이에 강건한가? | Phase 2에서는 측정하지 않음 | Phase 3~4 robustness 및 LOSO 실험 |
