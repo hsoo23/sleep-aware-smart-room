@@ -112,7 +112,9 @@ addresses, IP addresses, URLs, hostnames, or machine-specific paths.
   emails, URLs, IPv4/IPv6 addresses, `/Users/...`, `/home/...`, or Windows
   `C:\Users\...` paths, and local-network hostnames (`*.local`, `*.lan`, `*.home`,
   `*.internal`, `*.localdomain`) with `<email>`, `<url>`, `<ip>`, `<path>`, and
-  `<host>`. Public domain names are kept so failure text stays readable.
+  `<host>`. User names containing spaces are masked through the next path separator,
+  so part of the following message may also be masked, and a trailing dot on a
+  hostname is included. Public domain names are kept so failure text stays readable.
 - `run_end` stores only the exception class name, not its message.
 - Link a run to a participant code in the experiment record
   (`docs/EXPERIMENT_LOG_TEMPLATE.md`), not in the log.

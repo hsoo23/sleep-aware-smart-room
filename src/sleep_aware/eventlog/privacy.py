@@ -17,13 +17,24 @@ _PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
         ),
         "<ip>",
     ),
-    (re.compile(r"(?:/Users|/home)/[^\s'\"<>]+"), "<path>"),
-    (re.compile(r"\b[A-Za-z]:\\(?:Users|Documents and Settings)\\[^\s'\"<>]+"), "<path>"),
+    # A user name may contain spaces, so mask through the next separator when one follows;
+    # over-masking the rest of a message is preferred to leaking part of a path.
+    (
+        re.compile(r"(?:/Users|/home)/(?:[^/\n'\"<>]+/[^\s'\"<>]*|[^\s'\"<>]+)"),
+        "<path>",
+    ),
+    (
+        re.compile(
+            r"\b[A-Za-z]:\\(?:Users|Documents and Settings)\\"
+            r"(?:[^\\\n'\"<>]+\\[^\s'\"<>]*|[^\s'\"<>]+)"
+        ),
+        "<path>",
+    ),
     # Local-network hostnames such as raspberrypi.local; public domains stay readable.
     (
         re.compile(
             r"\b(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+"
-            r"(?:local|lan|home|internal|localdomain)\b(?!\.)",
+            r"(?:local|lan|home|internal|localdomain)\.?(?![\w.-])",
             re.IGNORECASE,
         ),
         "<host>",
