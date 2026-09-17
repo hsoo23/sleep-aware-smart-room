@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from sleep_aware.cli import main
+from sleep_aware.cli import _close_pipeline, main
 
 
 @pytest.mark.parametrize(
@@ -56,3 +56,24 @@ def test_cli_camera_start_up_failure_is_recorded_in_run_end(tmp_path, capsys, mo
     assert [record["record_type"] for record in records] == ["run_start", "run_end"]
     assert records[-1]["status"] == "failed"
     assert records[-1]["error_type"] == "RuntimeError"
+
+
+def test_cli_reports_cleanup_failure_even_when_interrupted():
+    class Pipeline:
+        closed = False
+
+        def close(self):
+            self.closed = True
+
+    class Policy:
+        has_pending_cleanup = True
+
+    pipeline = Pipeline()
+    with pytest.raises(RuntimeError, match="종료 정리") as raised:
+        try:
+            raise KeyboardInterrupt
+        finally:
+            _close_pipeline(pipeline, Policy())
+
+    assert pipeline.closed
+    assert isinstance(raised.value.__context__, KeyboardInterrupt)

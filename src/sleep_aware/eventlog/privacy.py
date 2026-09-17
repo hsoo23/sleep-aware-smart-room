@@ -18,11 +18,21 @@ _PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
         "<ip>",
     ),
     (re.compile(r"(?:/Users|/home)/[^\s'\"<>]+"), "<path>"),
+    (re.compile(r"\b[A-Za-z]:\\(?:Users|Documents and Settings)\\[^\s'\"<>]+"), "<path>"),
+    # Local-network hostnames such as raspberrypi.local; public domains stay readable.
+    (
+        re.compile(
+            r"\b(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)+"
+            r"(?:local|lan|home|internal|localdomain)\b(?!\.)",
+            re.IGNORECASE,
+        ),
+        "<host>",
+    ),
 )
 
 
 def redact(text: str) -> str:
-    """Replace emails, URLs, IP addresses, and home-directory paths with placeholders."""
+    """Replace emails, URLs, IPs, home-directory paths, and local hostnames with placeholders."""
     for pattern, placeholder in _PATTERNS:
         text = pattern.sub(placeholder, text)
     return text

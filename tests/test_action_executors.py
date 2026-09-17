@@ -189,3 +189,24 @@ def test_http_executor_rejects_remote_plain_http_without_explicit_opt_in():
 )
 def test_http_executor_allows_loopback_http_or_https(base_url: str):
     RaspberryPiHttpActionExecutor(base_url=base_url, timeout_seconds=1.0)
+
+
+def test_http_executor_closes_only_the_session_it_created(monkeypatch):
+    closed = []
+
+    class RecordingSession:
+        def close(self) -> None:
+            closed.append(self)
+
+    monkeypatch.setattr(requests, "Session", RecordingSession)
+    owned = RaspberryPiHttpActionExecutor(base_url="https://pi.example", timeout_seconds=1.0)
+    injected_transport = StubTransport(StubResponse())
+    injected = RaspberryPiHttpActionExecutor(
+        base_url="https://pi.example", timeout_seconds=1.0, transport=injected_transport
+    )
+
+    owned.close()
+    owned.close()
+    injected.close()
+
+    assert len(closed) == 1

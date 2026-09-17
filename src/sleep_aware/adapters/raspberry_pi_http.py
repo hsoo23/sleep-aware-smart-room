@@ -80,10 +80,26 @@ class RaspberryPiHttpActionExecutor:
 
         self._base_url = base_url.rstrip("/")
         self._timeout_seconds = timeout_seconds
-        self._transport = transport or requests.Session()
+        # Only a session created here is closed here; an injected transport is caller-owned.
+        self._owned_session = requests.Session() if transport is None else None
+        self._transport: HttpTransport = (
+            transport if transport is not None else self._owned_session
+        )
         self._endpoints = dict(endpoints)
         self._logger = logger or logging.getLogger(__name__)
         self._clock = clock
+
+    def close(self) -> None:
+        """Close the HTTP session this executor created; repeated calls are ignored."""
+        if self._owned_session is not None:
+            self._owned_session.close()
+            self._owned_session = None
+
+    def __enter__(self) -> RaspberryPiHttpActionExecutor:  # noqa: PYI034
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self.close()
 
     def execute(self, action: Action) -> ActionResult:
         """POST one action and convert expected network failures into results."""

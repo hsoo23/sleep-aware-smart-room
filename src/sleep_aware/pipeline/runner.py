@@ -65,6 +65,7 @@ class BaselinePipeline:
                 )
         self._closing = False
         self._policy.reset(self._intention)
+        self._detector.reset()
         self._previous_state = None
         self._last_state = None
         while (frame := self._frame_source.read()) is not None:

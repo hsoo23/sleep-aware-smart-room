@@ -14,7 +14,7 @@ from typing import Union
 from sleep_aware import __version__
 from sleep_aware.control import Intention
 
-ConfigValue = Union[str, int, float, bool, None]  # noqa: UP007
+ConfigValue = Union[str, int, float, bool]  # noqa: UP007
 
 
 @dataclass(frozen=True)

@@ -109,8 +109,10 @@ addresses, IP addresses, URLs, hostnames, or machine-specific paths.
   and hostnames from `Settings` are not included. Pass only experimental parameters
   in `detector_config`.
 - `failure_reason` passes through `sleep_aware.eventlog.redact`, which replaces
-  emails, URLs, IPv4/IPv6 addresses, and `/Users/...` or `/home/...` paths with
-  `<email>`, `<url>`, `<ip>`, and `<path>`.
+  emails, URLs, IPv4/IPv6 addresses, `/Users/...`, `/home/...`, or Windows
+  `C:\Users\...` paths, and local-network hostnames (`*.local`, `*.lan`, `*.home`,
+  `*.internal`, `*.localdomain`) with `<email>`, `<url>`, `<ip>`, `<path>`, and
+  `<host>`. Public domain names are kept so failure text stays readable.
 - `run_end` stores only the exception class name, not its message.
 - Link a run to a participant code in the experiment record
   (`docs/EXPERIMENT_LOG_TEMPLATE.md`), not in the log.

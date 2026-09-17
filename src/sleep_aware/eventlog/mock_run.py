@@ -141,18 +141,25 @@ def run_mock(
         git_dirty=dirty,
     )
     with JsonlEventLogger(log_dir, metadata) as logger:
+        policy = ClosedLoopPolicy()
         pipeline = BaselinePipeline(
             frame_source=SyntheticFrameSource(clock),
             landmark_processor=SyntheticLandmarkProcessor(clock),
             detector=detector,
-            policy=ClosedLoopPolicy(),
+            policy=policy,
             action_executor=SyntheticActionExecutor(clock, failing_action),
             event_logger=logger,
             intention=intention,
             clock=clock,
         )
-        for _ in pipeline.run():
-            pass
+        try:
+            for _ in pipeline.run():
+                pass
+        finally:
+            pipeline.close()
+        if policy.has_pending_cleanup:
+            # Raising inside the logger context records run_end as failed.
+            raise RuntimeError("mock cleanup actions did not complete")
     return logger.path
 
 

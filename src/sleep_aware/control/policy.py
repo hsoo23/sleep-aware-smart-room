@@ -137,12 +137,17 @@ class ClosedLoopPolicy:
 
         decision = self._observe(intention, state)
         retries = self._surviving_retries(decision)
-        if not retries:
+        actions = decision.actions
+        if Action.END_SESSION in self._pending_retry_actions and Action.START_SESSION in actions:
+            # The previous session never ended, so the new episode continues it instead of
+            # racing a retried END_SESSION against a fresh START_SESSION.
+            actions = tuple(action for action in actions if action is not Action.START_SESSION)
+        if not retries and actions == decision.actions:
             return decision
         return replace(
             decision,
-            reason=decision.reason if decision.actions else TransitionReason.ACTION_RETRY,
-            actions=retries + decision.actions,
+            reason=decision.reason if actions else TransitionReason.ACTION_RETRY,
+            actions=retries + actions,
         )
 
     def _surviving_retries(self, decision: PolicyTransition) -> tuple[Action, ...]:
@@ -159,6 +164,9 @@ class ClosedLoopPolicy:
             if action in _CLEANUP_ACTIONS:
                 # A new episode pauses media again, so resuming the old one is moot.
                 if action is Action.PLAY_MEDIA and Action.PAUSE_MEDIA in emitted:
+                    continue
+                # A new sleep episode keeps the unfinished session open until its recovery.
+                if action is Action.END_SESSION and Action.START_SESSION in emitted:
                     continue
                 kept.append(action)
             elif same_episode:

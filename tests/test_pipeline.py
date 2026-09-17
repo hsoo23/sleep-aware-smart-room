@@ -353,3 +353,30 @@ def test_pipeline_resets_detection_history_for_each_run():
 
     assert second[0].previous_state is None
     assert second[0].state_changed
+
+
+def test_pipeline_resets_detector_timers_for_each_run():
+    frames: deque[Frame] = deque([Frame(0, 0.0, object())])
+
+    class QueueFrameSource:
+        def read(self) -> Frame | None:
+            return frames.popleft() if frames else None
+
+    closed_eye = EyeLandmarks(_eye(0.4), _eye(0.4))
+    executor = FakeActionExecutor()
+    pipeline = BaselinePipeline(
+        frame_source=QueueFrameSource(),
+        landmark_processor=FakeLandmarkProcessor([closed_eye, closed_eye]),
+        detector=TemporalDrowsinessDetector(ear_threshold=0.21, drowsy_seconds=2.0),
+        policy=ClosedLoopPolicy(),
+        action_executor=executor,
+        event_logger=InMemoryEventLogger(),
+        intention=Intention.WAKE,
+    )
+    list(pipeline.run())
+    frames.append(Frame(1, 10.0, object()))
+
+    second = list(pipeline.run())
+
+    assert second[0].state is DrowsinessState.EYES_CLOSED
+    assert executor.executed == []

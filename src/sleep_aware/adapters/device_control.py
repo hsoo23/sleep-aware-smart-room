@@ -258,12 +258,21 @@ class CompositeActionExecutor:
         return self._routes[action].execute(action)
 
     def close(self) -> None:
+        """Close every distinct backend, then re-raise the first close failure."""
         seen: set[int] = set()
+        first_error: Exception | None = None
         for backend in reversed(tuple(self._routes.values())):
             identity = id(backend)
-            if identity not in seen:
+            if identity in seen:
+                continue
+            seen.add(identity)
+            try:
                 backend.close()
-                seen.add(identity)
+            except Exception as error:  # noqa: BLE001 - later backends must still be released.
+                if first_error is None:
+                    first_error = error
+        if first_error is not None:
+            raise first_error
 
     def __enter__(self) -> CompositeActionExecutor:  # noqa: PYI034
         return self
