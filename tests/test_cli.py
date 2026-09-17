@@ -77,3 +77,47 @@ def test_cli_reports_cleanup_failure_even_when_interrupted():
 
     assert pipeline.closed
     assert isinstance(raised.value.__context__, KeyboardInterrupt)
+
+
+def test_cli_records_executor_close_failure_in_run_end(tmp_path, capsys, monkeypatch):
+    class FailingCloseExecutor:
+        def __init__(self, **kwargs):
+            pass
+
+        def execute(self, action):
+            raise AssertionError("no frames are processed")
+
+        def close(self):
+            raise OSError("session close failed")
+
+    class EmptyCamera:
+        def __init__(self, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return None
+
+        def read(self):
+            return None
+
+    class Processor(EmptyCamera):
+        def process(self, frame):
+            return None
+
+    monkeypatch.setattr("sleep_aware.cli.RaspberryPiHttpActionExecutor", FailingCloseExecutor)
+    monkeypatch.setattr("sleep_aware.cli.OpenCVCameraSource", EmptyCamera)
+    monkeypatch.setattr("sleep_aware.cli.MediaPipeFaceMeshProcessor", Processor)
+
+    exit_code = main(
+        ["--input", "camera", "--actions", "real", "--no-display", "--log-dir", str(tmp_path)]
+    )
+
+    assert exit_code == 1
+    assert "session close failed" in capsys.readouterr().out
+    (log_path,) = tmp_path.glob("*.jsonl")
+    end = json.loads(log_path.read_text().splitlines()[-1])
+    assert (end["record_type"], end["status"]) == ("run_end", "failed")
+    assert end["error_type"] == "OSError"

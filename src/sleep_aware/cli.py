@@ -79,15 +79,6 @@ def _close_pipeline(pipeline: BaselinePipeline, policy: ClosedLoopPolicy) -> Non
 
 def run_camera(args: argparse.Namespace) -> Path:
     """Run the real camera pipeline and return the structured log path."""
-    if args.actions == "real":
-        executor = RaspberryPiHttpActionExecutor(
-            base_url=settings.pi_base_url,
-            timeout_seconds=settings.pi_timeout_seconds,
-            allow_insecure_http=args.allow_insecure_http,
-        )
-    else:
-        executor = MockActionExecutor()
-
     detector = TemporalDrowsinessDetector(
         ear_threshold=args.ear_threshold,
         drowsy_seconds=settings.drowsy_seconds,
@@ -112,11 +103,20 @@ def run_camera(args: argparse.Namespace) -> Path:
     )
 
     with ExitStack() as stack:
-        close_executor = getattr(executor, "close", None)
-        if close_executor is not None:
-            stack.callback(close_executor)
-        # Open the log first so camera or MediaPipe start-up failures still get run_end.
+        # Open the log first so executor, camera, or MediaPipe start-up failures still get
+        # run_end. ExitStack unwinds in reverse, so everything registered below (including
+        # executor.close) finishes before the logger writes run_end.
         logger = stack.enter_context(JsonlEventLogger(args.log_dir, metadata))
+        executor: Any
+        if args.actions == "real":
+            executor = RaspberryPiHttpActionExecutor(
+                base_url=settings.pi_base_url,
+                timeout_seconds=settings.pi_timeout_seconds,
+                allow_insecure_http=args.allow_insecure_http,
+            )
+            stack.callback(executor.close)
+        else:
+            executor = MockActionExecutor()
         source: Any = stack.enter_context(
             OpenCVCameraSource(
                 camera_index=args.camera_index,
