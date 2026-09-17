@@ -47,8 +47,11 @@
 |---|---|---|---|
 | RQ1 | Fixed EAR baseline이 상태를 재현 가능하게 판정하는가? | 상태 순서, threshold·지속시간 설정, frame별 EAR·latency 로그 | Phase 3 detector ablation과 비교 |
 | RQ2 | 사용자 의도에 따라 적절한 폐루프 동작과 복구가 실행되는가? | Sleep/Wake action sequence, 성공 여부, 재관찰 후 복구 로그 | 실제 장치 반복 성공률 보고 |
-| RQ3 | edge 환경에서 실시간 실행 가능한가? | inference/control/end-to-end latency와 카메라 smoke 결과 | Raspberry Pi FPS·CPU·memory 측정 |
+| RQ3 | edge 환경에서 실시간 실행 가능한가? | Raspberry Pi에서 측정한 FPS, CPU, memory, inference/control/end-to-end latency. 측정하지 않은 항목은 `미실시`로 기록 | 장시간 실행과 detector별 비용 비교 |
 | RQ4 | 조명·거리·각도 및 사용자 차이에 강건한가? | Phase 2에서는 측정하지 않음 | Phase 3~4 robustness 및 LOSO 실험 |
+
+개발 호스트의 카메라 smoke 결과는 카메라 획득 점검일 뿐이며 RQ3의 edge 실행 가능성
+근거로 사용하지 않습니다. 개발 호스트에서 측정한 latency도 edge 결과와 분리해 기록합니다.
 
 Phase 3 계획 항목을 Phase 2의 검증 결과로 표기하지 않습니다. 논문 표·그림·영상은 위
 RQ 중 하나와 연결하고, 연결되지 않는 결과는 핵심 실험 근거로 사용하지 않습니다.

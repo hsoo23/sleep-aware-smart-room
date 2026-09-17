@@ -56,7 +56,11 @@ sleep-aware --input camera --actions real --intention wake --display
 ```
 
 `q` 또는 Escape로 정상 종료하고, 실패 시 CLI의 오류와 JSONL `run_end`를 함께
-기록합니다. mock 성공을 실제 카메라·HTTP·GPIO 성공으로 보고하지 않습니다.
+기록합니다. CLI는 카메라·MediaPipe보다 먼저 로그를 열기 때문에 카메라 권한·열기나
+MediaPipe 초기화 실패도 `run_end.status=failed`와 `error_type`으로 남습니다. 로그
+디렉터리 생성 자체가 실패해 JSONL 파일이 없으면 로그 경로 칸에 `JSONL unavailable`과
+CLI 오류 메시지를 기록합니다. mock 성공을 실제 카메라·HTTP·GPIO 성공으로 보고하지
+않습니다.
 
 The unit tests cover EAR geometry, time-based temporal state transitions, and
 the MediaPipe adapter boundary using a fake native model, and the pure
