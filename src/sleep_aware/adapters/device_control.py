@@ -94,12 +94,16 @@ class MacOSChromeMediaActionExecutor:
 
     @staticmethod
     def _script(command: str) -> str:
+        javascript = (
+            "var v=document.querySelector('video'); "
+            f"if(v){{v.{command}();'{command}'}}else{{'no video'}}"
+        )
         return f'''
 tell application "Google Chrome"
     repeat with w in windows
         repeat with t in tabs of w
             if URL of t contains "youtube.com" then
-                set jsResult to execute javascript "var v=document.querySelector('video'); if(v){{v.{command}();'{command}'}}else{{'no video'}}"
+                set jsResult to execute javascript "{javascript}"
                 return jsResult
             end if
         end repeat

@@ -17,10 +17,8 @@ def test_calculate_ear_rejects_invalid_shape():
 
 def test_calculate_eye_ears_returns_both_eyes_and_mean():
     def eye(vertical):
-        return tuple(
-            Point(x, y)
-            for x, y in ((0, 0), (1, vertical), (3, vertical), (4, 0), (3, -vertical), (1, -vertical))
-        )
+        coordinates = ((0, 0), (1, vertical), (3, vertical), (4, 0), (3, -vertical), (1, -vertical))
+        return tuple(Point(x, y) for x, y in coordinates)
 
     left, right, mean = calculate_eye_ears(EyeLandmarks(eye(1.0), eye(0.5)))
 
