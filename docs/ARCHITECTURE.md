@@ -2,6 +2,20 @@
 
 The research system follows a closed-loop pipeline rather than a one-shot alert.
 
+## 구현 단계 구분
+
+| 구분 | 상태 | 목적 |
+|---|---|---|
+| Legacy 수업 프로젝트 | 보존·재현 대상 | MacBook, Chrome, Raspberry Pi를 연결한 최초 동작 기준 |
+| Phase 2 Fixed EAR baseline | 현재 구현 | 모듈 경계, CLI, 구조화 로그, mock 재현성과 실제 장치 연결 |
+| Phase 3 multimodal detector | 계획 | Adaptive EAR, PERCLOS, Head Pose ablation |
+
+아래 첫 번째 그림은 **Phase 3 목표 구조**를 포함합니다. 따라서 Adaptive EAR,
+PERCLOS, Head Pose, environmental context는 현재 baseline의 완료 기능으로 해석하면 안
+됩니다. 두 번째 그림이 현재 Phase 2에서 실행 가능한 구조입니다.
+
+## Phase 3 목표 구조(계획)
+
 ```mermaid
 flowchart LR
     A[Camera input] --> B[MediaPipe Face Mesh]
@@ -22,6 +36,41 @@ flowchart LR
     J --> K
     K --> F
 ```
+
+## Phase 2 실행 구조(현재)
+
+```mermaid
+flowchart LR
+    subgraph setup[CLI 조립: 실행 시작 시 1회]
+        I{입력 선택} -->|mock| SF[SyntheticFrameSource]
+        I -->|camera| OC[OpenCVCameraSource]
+        A{동작 선택} -->|mock| MA[In-memory devices]
+        A -->|real| HTTP[Raspberry Pi HTTP]
+    end
+    subgraph loop[BaselinePipeline.run: frame마다 반복]
+        READ[선택된 FrameSource.read] --> LMK[Landmarks<br/>Synthetic 또는 MediaPipe Face Mesh]
+        LMK --> EAR[Fixed EAR]
+        EAR --> TD[Temporal detector]
+        TD --> CP[Sleep/Wake closed-loop policy]
+        CP --> EX[선택된 ActionExecutor.execute]
+        EX --> ACK[policy.acknowledge<br/>실패 action 재시도 예약]
+        ACK --> LOG[JSONL event log]
+        LOG -->|다음 frame 재관찰| READ
+    end
+    SF -.-> READ
+    OC -.-> READ
+    MA -.-> EX
+    HTTP -.-> EX
+```
+
+입력과 동작 어댑터는 CLI가 실행 시작 시 한 번만 선택·초기화합니다. 재관찰은 입력을
+다시 선택하는 것이 아니라 이미 선택된 `FrameSource`에서 다음 frame을 `read()`하는
+반복이며, frame이 없거나 사용자가 종료하면 `BaselinePipeline.close()`가 남은 cleanup을
+실행합니다.
+
+CLI가 composition root 역할을 하며 core pipeline은 OpenCV, MediaPipe, HTTP 또는
+파일시스템 구현을 직접 import하지 않습니다. `--input mock --actions mock`은 CI와
+로컬 검증용이고, `--input camera --actions real`은 실제 장치 시연용입니다.
 
 ## Module boundaries
 
