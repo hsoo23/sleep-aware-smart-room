@@ -37,3 +37,22 @@ def test_cli_mock_run_is_deterministic_and_exercises_closed_loop(
 def test_cli_rejects_real_actions_for_mock_input(tmp_path, capsys):
     assert main(["--input", "mock", "--actions", "real", "--log-dir", str(tmp_path)]) == 1
     assert "mock 입력" in capsys.readouterr().out
+
+
+def test_cli_camera_start_up_failure_is_recorded_in_run_end(tmp_path, capsys, monkeypatch):
+    def fail_to_open(**kwargs):
+        raise RuntimeError("camera permission denied")
+
+    monkeypatch.setattr("sleep_aware.cli.OpenCVCameraSource", fail_to_open)
+
+    exit_code = main(
+        ["--input", "camera", "--actions", "mock", "--no-display", "--log-dir", str(tmp_path)]
+    )
+
+    assert exit_code == 1
+    assert "camera permission denied" in capsys.readouterr().out
+    (log_path,) = tmp_path.glob("*.jsonl")
+    records = [json.loads(line) for line in log_path.read_text().splitlines()]
+    assert [record["record_type"] for record in records] == ["run_start", "run_end"]
+    assert records[-1]["status"] == "failed"
+    assert records[-1]["error_type"] == "RuntimeError"

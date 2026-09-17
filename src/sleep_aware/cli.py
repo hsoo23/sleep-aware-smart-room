@@ -101,6 +101,8 @@ def run_camera(args: argparse.Namespace) -> Path:
     )
 
     with ExitStack() as stack:
+        # Open the log first so camera or MediaPipe start-up failures still get run_end.
+        logger = stack.enter_context(JsonlEventLogger(args.log_dir, metadata))
         source: Any = stack.enter_context(
             OpenCVCameraSource(
                 camera_index=args.camera_index,
@@ -121,7 +123,6 @@ def run_camera(args: argparse.Namespace) -> Path:
 
             source = DisplayFrameSource(source, cv2)
             stack.callback(source.close)
-        logger = stack.enter_context(JsonlEventLogger(args.log_dir, metadata))
         policy = ClosedLoopPolicy()
         pipeline = BaselinePipeline(
             frame_source=source,
