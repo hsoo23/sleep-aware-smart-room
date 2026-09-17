@@ -44,6 +44,7 @@ The research value is the integrated system and quantitative validation, not EAR
 │   ├── CLOSED_LOOP_POLICY.md
 │   ├── RESEARCH_PLAN.md
 │   ├── LOGGING_SCHEMA.md
+│   ├── DEMO_VALIDATION.md
 │   └── EXPERIMENT_LOG_TEMPLATE.md
 ├── tests/
 ├── .env.example
