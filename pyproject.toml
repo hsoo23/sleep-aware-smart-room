@@ -21,6 +21,9 @@ dependencies = [
   "requests>=2.31",
 ]
 
+[project.scripts]
+sleep-aware = "sleep_aware.cli:main"
+
 [project.optional-dependencies]
 host = ["opencv-python>=4.8", "mediapipe>=0.10", "pyautogui>=0.9"]
 server = ["flask>=3.0"]

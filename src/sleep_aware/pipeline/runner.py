@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable, Iterator
-
-import numpy as np
+from dataclasses import replace
+from time import perf_counter
+from typing import Union
 
 from sleep_aware.control import Action, ClosedLoopPolicy, Intention
-from sleep_aware.detection import calculate_ear
+from sleep_aware.detection import DrowsinessState, calculate_eye_ears
 
 from .contracts import (
     ActionExecutor,
@@ -16,17 +18,9 @@ from .contracts import (
     FrameSource,
     LandmarkProcessor,
 )
-from .models import ActionResult, EyeLandmarks, PipelineEvent, Point
+from .models import ActionResult, EyeLandmarks, LatencyBreakdown, PipelineEvent
 
-
-def _eye_array(points: tuple[Point, Point, Point, Point, Point, Point]) -> np.ndarray:
-    return np.asarray([(point.x, point.y) for point in points], dtype=float)
-
-
-def _mean_ear(landmarks: EyeLandmarks) -> float:
-    left = calculate_ear(_eye_array(landmarks.left_eye))
-    right = calculate_ear(_eye_array(landmarks.right_eye))
-    return (left + right) / 2.0
+EarResult = Union[float, tuple[float, float, float]]  # noqa: UP007
 
 
 class BaselinePipeline:
@@ -42,7 +36,9 @@ class BaselinePipeline:
         action_executor: ActionExecutor,
         event_logger: EventLogger,
         intention: Intention,
-        ear_calculator: Callable[[EyeLandmarks], float] = _mean_ear,
+        ear_calculator: Callable[[EyeLandmarks], EarResult] = calculate_eye_ears,
+        latency_clock: Callable[[], float] = perf_counter,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._frame_source = frame_source
         self._landmark_processor = landmark_processor
@@ -52,33 +48,113 @@ class BaselinePipeline:
         self._event_logger = event_logger
         self._intention = intention
         self._ear_calculator = ear_calculator
+        self._latency_clock = latency_clock
+        # Must be the same monotonic clock that stamps Frame.timestamp.
+        self._clock = clock
+        self._previous_state: DrowsinessState | None = None
+        self._last_state: DrowsinessState | None = None
+        self._closing = False
 
     def run(self) -> Iterator[PipelineEvent]:
         """Process all available frames and yield each event after it is logged."""
+        if self._closing:
+            self.close()
+            if self._policy.has_pending_cleanup:
+                raise RuntimeError(
+                    "previous run cleanup did not complete; refusing to start a new run"
+                )
+        self._closing = False
+        self._policy.reset(self._intention)
+        self._previous_state = None
+        self._last_state = None
         while (frame := self._frame_source.read()) is not None:
+            inference_start = self._clock()
+            landmark_started = self._latency_clock()
             landmarks = self._landmark_processor.process(frame)
-            ear = self._ear_calculator(landmarks) if landmarks is not None else None
+            landmark_latency_ms = (self._latency_clock() - landmark_started) * 1_000
+
+            inference_started = self._latency_clock()
+            left_ear: float | None = None
+            right_ear: float | None = None
+            ear: float | None = None
+            if landmarks is not None:
+                ear_result = self._ear_calculator(landmarks)
+                if isinstance(ear_result, tuple):
+                    left_ear, right_ear, ear = ear_result
+                else:
+                    ear = ear_result
             state = self._detector.update(frame.timestamp, ear)
-            actions = tuple(self._policy.decide(self._intention, state))
+            inference_latency_ms = (self._latency_clock() - inference_started) * 1_000
+            control_start = self._clock()
+            policy_transition = self._policy.transition(self._intention, state)
+            actions = policy_transition.actions
             results = tuple(self._execute(action) for action in actions)
+            self._policy.acknowledge(
+                policy_transition, tuple(result.succeeded for result in results)
+            )
+            control_end = self._clock()
             event = PipelineEvent(
                 frame_sequence=frame.sequence,
                 timestamp=frame.timestamp,
+                intention=self._intention,
                 ear=ear,
+                ear_threshold=self._detector.ear_threshold,
+                previous_state=self._previous_state,
                 state=state,
                 actions=actions,
                 action_results=results,
+                policy_transition=policy_transition,
+                latency=LatencyBreakdown(
+                    inference=control_start - inference_start,
+                    control=control_end - control_start,
+                    end_to_end=control_end - frame.timestamp,
+                ),
+                left_ear=left_ear,
+                right_ear=right_ear,
+                landmark_latency_ms=landmark_latency_ms,
+                inference_latency_ms=inference_latency_ms,
             )
+            self._previous_state = state
+            self._last_state = state
             self._event_logger.log(event)
             yield event
 
+    def set_intention(self, intention: Intention) -> None:
+        """Apply a mode change on the next observation."""
+        self._intention = intention
+
+    def close(self, max_attempts: int = 2) -> tuple[ActionResult, ...]:
+        """Retry policy-owned cleanup without discarding failures between calls."""
+        if max_attempts < 1:
+            raise ValueError("max_attempts must be positive")
+        if not self._closing:
+            self._policy.reset(self._intention)
+            self._closing = True
+
+        attempted: list[ActionResult] = []
+        for _ in range(max_attempts):
+            transition = self._policy.transition(
+                self._intention, self._last_state or DrowsinessState.NO_FACE
+            )
+            if not transition.actions:
+                break
+            results = tuple(self._execute(action) for action in transition.actions)
+            attempted.extend(results)
+            self._policy.acknowledge(
+                transition, tuple(result.succeeded for result in results)
+            )
+            if all(result.succeeded for result in results):
+                break
+        return tuple(attempted)
+
     def _execute(self, action: Action) -> ActionResult:
+        start = self._clock()
         try:
             result = self._action_executor.execute(action)
-        except Exception as error:  # Device failures must not stop re-observation.
-            return ActionResult(action=action, succeeded=False, detail=str(error))
+        except Exception as error:  # noqa: BLE001 - keep re-observing after device failures.
+            result = ActionResult(action=action, succeeded=False, detail=str(error))
         if result.action is not action:
             raise ValueError(
                 f"executor returned result for {result.action.value}, expected {action.value}"
             )
-        return result
+        return replace(result, latency=self._clock() - start)

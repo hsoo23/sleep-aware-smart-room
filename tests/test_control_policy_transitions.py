@@ -85,5 +85,5 @@ def test_policy_wake_mode_never_turns_light_off_or_starts_sleep_session():
 def test_policy_rejects_unsupported_intention_on_drowsy():
     policy = ClosedLoopPolicy()
 
-    with pytest.raises(ValueError, match="unsupported intention"):
+    with pytest.raises(TypeError, match="unsupported intention"):
         policy.decide("nap", DrowsinessState.DROWSY)

@@ -21,6 +21,7 @@ class TemporalDrowsinessDetector:
     _closed_since: float | None = None
     _open_since: float | None = None
     _state: DrowsinessState = DrowsinessState.NO_FACE
+    _has_observed_face: bool = False
 
     def update(self, timestamp: float, ear: float | None) -> DrowsinessState:
         if ear is None:
@@ -30,6 +31,7 @@ class TemporalDrowsinessDetector:
             return self._state
 
         if ear < self.ear_threshold:
+            self._has_observed_face = True
             self._open_since = None
             if self._closed_since is None:
                 self._closed_since = timestamp
@@ -42,9 +44,12 @@ class TemporalDrowsinessDetector:
             return self._state
 
         self._closed_since = None
+        if self._state is DrowsinessState.NO_FACE and not self._has_observed_face:
+            self._has_observed_face = True
+            self._state = DrowsinessState.AWAKE
+            return self._state
         if self._open_since is None:
             self._open_since = timestamp
         if timestamp - self._open_since >= self.recovery_seconds:
             self._state = DrowsinessState.AWAKE
         return self._state
-
