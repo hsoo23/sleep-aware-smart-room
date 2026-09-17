@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import argparse
-from contextlib import ExitStack
+from collections.abc import Iterator
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -66,6 +67,29 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _add_note(error: BaseException, note: str) -> None:
+    """Attach a note like ``BaseException.add_note`` (Python 3.11+) on Python 3.10 too."""
+    notes = getattr(error, "__notes__", None)
+    if notes is None:
+        notes = []
+        error.__notes__ = notes
+    notes.append(note)
+
+
+@contextmanager
+def _closing_executor(executor: RaspberryPiHttpActionExecutor) -> Iterator[None]:
+    """Close the executor without letting its failure hide an earlier cleanup error."""
+    try:
+        yield
+    except BaseException as error:
+        try:
+            executor.close()
+        except Exception as close_error:  # noqa: BLE001 - keep the primary error.
+            _add_note(error, f"장치 실행기 종료도 실패했습니다: {close_error}")
+        raise
+    executor.close()
+
+
 def _close_pipeline(pipeline: BaselinePipeline, policy: ClosedLoopPolicy) -> None:
     """Run policy cleanup and fail loudly if external device state may be left behind.
 
@@ -114,7 +138,7 @@ def run_camera(args: argparse.Namespace) -> Path:
                 timeout_seconds=settings.pi_timeout_seconds,
                 allow_insecure_http=args.allow_insecure_http,
             )
-            stack.callback(executor.close)
+            stack.enter_context(_closing_executor(executor))
         else:
             executor = MockActionExecutor()
         source: Any = stack.enter_context(
@@ -173,6 +197,8 @@ def main(argv: list[str] | None = None) -> int:
         return 130
     except (OSError, RuntimeError, ValueError) as error:
         print(f"실행 실패: {error}")
+        for note in getattr(error, "__notes__", ()):
+            print(f"추가 실패: {note}")
         return 1
     print(path)
     return 0

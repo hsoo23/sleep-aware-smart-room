@@ -153,6 +153,21 @@ def test_logger_redacts_windows_user_paths_and_local_hostnames(tmp_path):
     assert reason == "open <path> failed; <host>:5050 refused"
 
 
+def test_logger_redacts_user_paths_with_spaces_and_fqdn_trailing_dot(tmp_path):
+    detail = (
+        r"open C:\Users\Alice Smith\project\log.txt failed; "
+        "read /home/Alice Smith/project failed; connect raspberrypi.local. refused"
+    )
+    with JsonlEventLogger(tmp_path, _metadata()) as logger:
+        logger.log(_event(detail))
+
+    text = logger.path.read_text(encoding="utf-8")
+    for secret in ("Alice", "Smith", "raspberrypi"):
+        assert secret not in text
+    reason = _read(logger.path)[1]["actions"][1]["failure_reason"]
+    assert reason == "open <path> failed; read <path> failed; connect <host> refused"
+
+
 def test_redact_keeps_public_domains_and_ordinary_words():
     assert redact("see docs.python.org, then retry at home") == (
         "see docs.python.org, then retry at home"

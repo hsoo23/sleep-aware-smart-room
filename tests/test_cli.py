@@ -121,3 +121,50 @@ def test_cli_records_executor_close_failure_in_run_end(tmp_path, capsys, monkeyp
     end = json.loads(log_path.read_text().splitlines()[-1])
     assert (end["record_type"], end["status"]) == ("run_end", "failed")
     assert end["error_type"] == "OSError"
+
+
+def test_cli_keeps_cleanup_error_primary_when_executor_close_also_fails(
+    tmp_path, capsys, monkeypatch
+):
+    class FailingCloseExecutor:
+        def __init__(self, **kwargs):
+            pass
+
+        def close(self):
+            raise OSError("session close failed")
+
+    class EmptyCamera:
+        def __init__(self, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return None
+
+        def read(self):
+            return None
+
+        def process(self, frame):
+            return None
+
+    def fail_cleanup(pipeline, policy):
+        raise RuntimeError("종료 정리 동작이 완료되지 않았습니다")
+
+    monkeypatch.setattr("sleep_aware.cli.RaspberryPiHttpActionExecutor", FailingCloseExecutor)
+    monkeypatch.setattr("sleep_aware.cli.OpenCVCameraSource", EmptyCamera)
+    monkeypatch.setattr("sleep_aware.cli.MediaPipeFaceMeshProcessor", EmptyCamera)
+    monkeypatch.setattr("sleep_aware.cli._close_pipeline", fail_cleanup)
+
+    exit_code = main(
+        ["--input", "camera", "--actions", "real", "--no-display", "--log-dir", str(tmp_path)]
+    )
+
+    output = capsys.readouterr().out
+    assert exit_code == 1
+    assert "종료 정리 동작이 완료되지 않았습니다" in output
+    assert "session close failed" in output
+    (log_path,) = tmp_path.glob("*.jsonl")
+    end = json.loads(log_path.read_text().splitlines()[-1])
+    assert (end["status"], end["error_type"]) == ("failed", "RuntimeError")
