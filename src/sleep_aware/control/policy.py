@@ -7,7 +7,7 @@ be tested without a camera, Raspberry Pi, or media player.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 
 from sleep_aware.detection.state import DrowsinessState
@@ -69,6 +69,8 @@ class PolicyTransition:
 class ClosedLoopPolicy:
     """Translate observations into idempotent, mode-specific transitions."""
 
+    # Retries allowed for a failed episode action; cleanup actions retry until they succeed.
+    max_action_retries: int = 2
     _intention: Intention | None = field(default=None, init=False)
     _phase: PolicyPhase = field(default=PolicyPhase.IDLE, init=False)
     _sleep_session_active: bool = field(default=False, init=False)
@@ -76,6 +78,11 @@ class ClosedLoopPolicy:
     _pending_intention: Intention | None = field(default=None, init=False)
     _pending_reset_reason: TransitionReason | None = field(default=None, init=False)
     _pending_retry_actions: tuple[Action, ...] = field(default=(), init=False)
+    _retry_attempts: dict[Action, int] = field(default_factory=dict, init=False)
+
+    def __post_init__(self) -> None:
+        if self.max_action_retries < 0:
+            raise ValueError("max_action_retries must not be negative")
 
     @property
     def phase(self) -> PolicyPhase:
@@ -85,7 +92,7 @@ class ClosedLoopPolicy:
     def has_pending_cleanup(self) -> bool:
         """Whether owned external state still needs a cleanup action to succeed."""
         return bool(
-            self._pending_retry_actions
+            any(action in _CLEANUP_ACTIONS for action in self._pending_retry_actions)
             or self._sleep_session_active
             or self._media_paused_by_system
             or self._pending_reset_reason is not None
@@ -125,16 +132,38 @@ class ClosedLoopPolicy:
         if not isinstance(intention, Intention):
             raise TypeError(f"unsupported intention: {intention}")
 
-        if self._pending_retry_actions:
-            return PolicyTransition(
-                intention=intention,
-                observed_state=state,
-                previous_phase=self._phase,
-                next_phase=self._phase,
-                reason=TransitionReason.ACTION_RETRY,
-                actions=self._pending_retry_actions,
-            )
+        decision = self._observe(intention, state)
+        retries = self._surviving_retries(decision)
+        if not retries:
+            return decision
+        return replace(
+            decision,
+            reason=decision.reason if decision.actions else TransitionReason.ACTION_RETRY,
+            actions=retries + decision.actions,
+        )
 
+    def _surviving_retries(self, decision: PolicyTransition) -> tuple[Action, ...]:
+        """Keep failed actions that the new decision neither repeats nor supersedes."""
+        emitted = set(decision.actions)
+        same_episode = (
+            decision.previous_phase is PolicyPhase.AWAITING_RECOVERY
+            and decision.next_phase is PolicyPhase.AWAITING_RECOVERY
+        )
+        kept: list[Action] = []
+        for action in self._pending_retry_actions:
+            if action in emitted:
+                continue
+            if action in _CLEANUP_ACTIONS:
+                # A new episode pauses media again, so resuming the old one is moot.
+                if action is Action.PLAY_MEDIA and Action.PAUSE_MEDIA in emitted:
+                    continue
+                kept.append(action)
+            elif same_episode:
+                kept.append(action)
+        return tuple(kept)
+
+    def _observe(self, intention: Intention, state: DrowsinessState) -> PolicyTransition:
+        """Decide the transition for one observation, ignoring pending retries."""
         if self._pending_reset_reason is not None:
             return self._complete_reset(intention, state)
 
@@ -183,12 +212,25 @@ class ClosedLoopPolicy:
     def acknowledge(
         self, transition: PolicyTransition, succeeded: tuple[bool, ...]
     ) -> None:
-        """Schedule failed actions for retry on the next observation."""
+        """Schedule failed actions for retry on the next observation.
+
+        Episode actions are retried at most ``max_action_retries`` times so a
+        persistently offline device cannot stall every later frame; cleanup
+        actions stay pending until they succeed.
+        """
         if len(succeeded) != len(transition.actions):
             raise ValueError("one acknowledgement is required for every action")
-        self._pending_retry_actions = tuple(
-            action for action, ok in zip(transition.actions, succeeded) if not ok
-        )
+        pending: list[Action] = []
+        attempts: dict[Action, int] = {}
+        for action, ok in zip(transition.actions, succeeded, strict=True):
+            if ok:
+                continue
+            count = self._retry_attempts.get(action, 0) + 1
+            if action in _CLEANUP_ACTIONS or count <= self.max_action_retries:
+                pending.append(action)
+                attempts[action] = count
+        self._pending_retry_actions = tuple(pending)
+        self._retry_attempts = attempts
 
     def _complete_reset(
         self, intention: Intention, state: DrowsinessState

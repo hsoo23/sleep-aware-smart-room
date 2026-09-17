@@ -1,3 +1,5 @@
+import pytest
+
 from sleep_aware.control.policy import (
     Action,
     ClosedLoopPolicy,
@@ -179,3 +181,66 @@ def test_reset_drops_failed_episode_actions_but_keeps_owned_cleanup():
 
     assert cleanup.reason is TransitionReason.RESET
     assert cleanup.actions == (Action.PLAY_MEDIA,)
+
+
+def test_failing_episode_action_does_not_block_recovery():
+    policy = ClosedLoopPolicy()
+    drowsy = policy.transition(Intention.WAKE, DrowsinessState.DROWSY)
+    policy.acknowledge(drowsy, (True, True, False))
+
+    recovery = policy.transition(Intention.WAKE, DrowsinessState.AWAKE)
+
+    assert recovery.reason is TransitionReason.RECOVERY_CONFIRMED
+    assert recovery.actions == (Action.PLAY_MEDIA,)
+
+
+def test_episode_action_retries_are_bounded():
+    policy = ClosedLoopPolicy(max_action_retries=2)
+    transition = policy.transition(Intention.WAKE, DrowsinessState.DROWSY)
+    retried = []
+    for _ in range(4):
+        policy.acknowledge(
+            transition,
+            tuple(action is not Action.BUZZER_ALERT for action in transition.actions),
+        )
+        transition = policy.transition(Intention.WAKE, DrowsinessState.DROWSY)
+        retried.append(transition.actions)
+
+    assert retried == [(Action.BUZZER_ALERT,), (Action.BUZZER_ALERT,), (), ()]
+
+
+def test_failed_cleanup_is_retried_before_new_episode_actions():
+    policy = ClosedLoopPolicy()
+    policy.transition(Intention.SLEEP, DrowsinessState.DROWSY)
+    recovery = policy.transition(Intention.SLEEP, DrowsinessState.AWAKE)
+    policy.acknowledge(recovery, (False,))
+
+    next_episode = policy.transition(Intention.SLEEP, DrowsinessState.DROWSY)
+
+    assert next_episode.reason is TransitionReason.DROWSY_DETECTED
+    assert next_episode.actions == (
+        Action.END_SESSION,
+        Action.PAUSE_MEDIA,
+        Action.LIGHT_OFF,
+        Action.START_SESSION,
+    )
+
+
+def test_new_episode_supersedes_failed_media_resume():
+    policy = ClosedLoopPolicy()
+    policy.transition(Intention.WAKE, DrowsinessState.DROWSY)
+    recovery = policy.transition(Intention.WAKE, DrowsinessState.AWAKE)
+    policy.acknowledge(recovery, (False,))
+
+    next_episode = policy.transition(Intention.WAKE, DrowsinessState.DROWSY)
+
+    assert next_episode.actions == (
+        Action.PAUSE_MEDIA,
+        Action.LIGHT_ON,
+        Action.BUZZER_ALERT,
+    )
+
+
+def test_negative_retry_limit_is_rejected():
+    with pytest.raises(ValueError, match="max_action_retries"):
+        ClosedLoopPolicy(max_action_retries=-1)

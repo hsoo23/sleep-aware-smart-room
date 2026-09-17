@@ -29,8 +29,18 @@
 ## 실행 결과 확인과 재시도
 
 `BaselinePipeline`은 실행 결과를 `ClosedLoopPolicy.acknowledge()`로 정책에 돌려줍니다.
-실패한 action만 다음 관찰에서 `ACTION_RETRY` transition으로 다시 생성되며, 성공이
-확인될 때까지 새 transition은 만들지 않습니다.
+실패한 action만 다음 관찰에서 다시 생성됩니다. 새 관찰이 만든 action이 없으면 전이
+사유는 `ACTION_RETRY`이고, 새 action이 있으면 재시도 action을 앞에 붙여 함께 실행합니다.
+재시도는 이후 전이를 막지 않으므로 부저 같은 장치가 계속 실패해도 회복 시
+`PLAY_MEDIA`·`END_SESSION`은 정상적으로 생성됩니다.
+
+- 에피소드 action(`PAUSE_MEDIA`, `LIGHT_OFF`, `LIGHT_ON`, `BUZZER_ALERT`,
+  `START_SESSION`)은 같은 에피소드가 `AWAITING_RECOVERY`로 유지되는 동안에만
+  `max_action_retries`(기본 2회)까지 재시도하고, 회복·reset·모드 변경 시 버립니다.
+  오프라인 장치의 timeout이 매 프레임 반복되지 않게 하기 위한 제한입니다.
+- cleanup action(`END_SESSION`, `PLAY_MEDIA`)은 성공할 때까지 유지합니다. 단, 새
+  에피소드가 `PAUSE_MEDIA`를 실행하면 이전 `PLAY_MEDIA` 재시도는 의미가 없으므로 버리고,
+  새 에피소드의 회복 시점에 다시 재생합니다.
 
 `reset()`은 에피소드 중 실패한 action(`LIGHT_ON`, `BUZZER_ALERT` 등)의 재시도는
 버리지만, 소유 자원을 해제하는 cleanup action(`END_SESSION`, `PLAY_MEDIA`)의 재시도는
