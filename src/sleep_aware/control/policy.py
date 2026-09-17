@@ -112,14 +112,17 @@ class ClosedLoopPolicy:
         self._pending_retry_actions = pending_cleanup
 
     def _clear(self, intention: Intention | None) -> None:
-        """Clear internal state after no cleanup is needed or cleanup is emitted."""
+        """Clear episode state after no cleanup is needed or cleanup is emitted.
+
+        Pending retries are left to ``acknowledge`` and ``_surviving_retries`` so a
+        failed cleanup is not lost when a mode change clears the episode.
+        """
         self._intention = intention
         self._phase = PolicyPhase.IDLE
         self._sleep_session_active = False
         self._media_paused_by_system = False
         self._pending_intention = None
         self._pending_reset_reason = None
-        self._pending_retry_actions = ()
 
     def decide(self, intention: Intention, state: DrowsinessState) -> list[Action]:
         """Return actions for callers that do not need transition metadata."""

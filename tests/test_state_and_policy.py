@@ -244,3 +244,15 @@ def test_new_episode_supersedes_failed_media_resume():
 def test_negative_retry_limit_is_rejected():
     with pytest.raises(ValueError, match="max_action_retries"):
         ClosedLoopPolicy(max_action_retries=-1)
+
+
+def test_mode_change_keeps_failed_cleanup_retry():
+    policy = ClosedLoopPolicy()
+    policy.transition(Intention.WAKE, DrowsinessState.DROWSY)
+    recovery = policy.transition(Intention.WAKE, DrowsinessState.AWAKE)
+    policy.acknowledge(recovery, (False,))
+
+    changed = policy.transition(Intention.SLEEP, DrowsinessState.AWAKE)
+
+    assert changed.actions == (Action.PLAY_MEDIA,)
+    assert policy.has_pending_cleanup
