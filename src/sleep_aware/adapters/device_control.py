@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import platform
+import re
 import subprocess
 import time
 from collections.abc import Callable, Mapping, Sequence
@@ -23,6 +24,21 @@ class ActionBackend(Protocol):
 
 def _elapsed_ms(clock: Callable[[], float], started_at: float) -> float:
     return max(0.0, (clock() - started_at) * 1000.0)
+
+
+# AppleScript error raised when Chrome refuses "execute javascript"; the operator has
+# to enable 보기 → 개발자용 → Apple Events에서 JavaScript 허용.
+CHROME_JAVASCRIPT_DENIED = -1723
+JAVASCRIPT_DISABLED_HINT = (
+    "Chrome이 Apple Events의 JavaScript 실행을 거부했습니다. "
+    "보기 → 개발자용 → Apple Events에서 JavaScript 허용을 켜세요"
+)
+# osascript reports the denial before the script runs, so ``try`` cannot catch it and
+# the number only appears on stderr.
+_ERROR_NUMBER = re.compile(r"\((-?\d+)\)")
+NO_TAB_MARKER = "no-youtube-tab"
+NO_VIDEO_MARKER = "no-video"
+ERROR_PREFIX = "applescript-error:"
 
 
 class MacOSChromeMediaActionExecutor:
@@ -62,23 +78,63 @@ class MacOSChromeMediaActionExecutor:
 
         elapsed = _elapsed_ms(self._clock, started_at)
         if completed.returncode != 0:
+            return self._script_error(action, completed.stderr or "", elapsed)
+        return self._interpret(action, completed.stdout.strip(), command, elapsed)
+
+    def _script_error(self, action: Action, stderr: str, elapsed: float) -> ActionResult:
+        """Classify an osascript failure; the error number only appears on stderr."""
+        match = _ERROR_NUMBER.search(stderr)
+        number = match.group(1) if match else None
+        if number == str(CHROME_JAVASCRIPT_DENIED):
             return ActionResult(
                 action=action,
                 succeeded=False,
-                detail="Chrome media command failed",
+                detail=JAVASCRIPT_DISABLED_HINT,
                 elapsed_ms=elapsed,
-                error_reason="command_failed",
+                error_reason="javascript_not_allowed",
             )
-        result = completed.stdout.strip()
-        if result != command:
-            return ActionResult(
-                action=action,
-                succeeded=False,
-                detail="YouTube video was not found",
-                elapsed_ms=elapsed,
-                error_reason="media_not_found",
-            )
-        return ActionResult(action=action, succeeded=True, detail=result, elapsed_ms=elapsed)
+        detail = (
+            f"Chrome AppleScript error {number}"
+            if number is not None
+            else "Chrome media command failed"
+        )
+        return ActionResult(
+            action=action,
+            succeeded=False,
+            detail=detail,
+            elapsed_ms=elapsed,
+            error_reason="command_failed",
+        )
+
+    def _interpret(
+        self, action: Action, result: str, command: str, elapsed: float
+    ) -> ActionResult:
+        """Map the script's marker output to a distinguishable failure reason."""
+        if result == command:
+            return ActionResult(action=action, succeeded=True, detail=result, elapsed_ms=elapsed)
+
+        detail, reason = {
+            NO_TAB_MARKER: ("YouTube tab was not found", "tab_not_found"),
+            NO_VIDEO_MARKER: ("YouTube video was not found", "media_not_found"),
+        }.get(result, ("unexpected Chrome response", "unexpected_result"))
+
+        if result.startswith(ERROR_PREFIX):
+            number = result[len(ERROR_PREFIX) :]
+            if number == str(CHROME_JAVASCRIPT_DENIED):
+                detail, reason = JAVASCRIPT_DISABLED_HINT, "javascript_not_allowed"
+            else:
+                detail, reason = (
+                    f"Chrome AppleScript error {number}",
+                    "command_failed",
+                )
+
+        return ActionResult(
+            action=action,
+            succeeded=False,
+            detail=detail,
+            elapsed_ms=elapsed,
+            error_reason=reason,
+        )
 
     def close(self) -> None:
         """The AppleScript adapter owns no persistent resource."""
@@ -96,19 +152,32 @@ class MacOSChromeMediaActionExecutor:
     def _script(command: str) -> str:
         javascript = (
             "var v=document.querySelector('video'); "
-            f"if(v){{v.{command}();'{command}'}}else{{'no video'}}"
+            f"if(v){{v.{command}();'{command}'}}else{{'{NO_VIDEO_MARKER}'}}"
         )
         return f'''
 tell application "Google Chrome"
+    set sawYouTubeTab to false
     repeat with w in windows
         repeat with t in tabs of w
             if URL of t contains "youtube.com" then
-                set jsResult to execute javascript "{javascript}"
-                return jsResult
+                set sawYouTubeTab to true
+                try
+                    -- "in t" is required; without it Chrome ignores the tab found above.
+                    set jsResult to execute javascript "{javascript}" in t
+                on error errorMessage number errorNumber
+                    return "{ERROR_PREFIX}" & errorNumber
+                end try
+                -- A YouTube home or search tab has no video; keep looking at the rest.
+                if jsResult is not "{NO_VIDEO_MARKER}" then
+                    return jsResult
+                end if
             end if
         end repeat
     end repeat
-    return "no video"
+    if sawYouTubeTab then
+        return "{NO_VIDEO_MARKER}"
+    end if
+    return "{NO_TAB_MARKER}"
 end tell
 '''
 

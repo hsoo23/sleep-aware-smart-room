@@ -16,6 +16,7 @@
 - [ ] `python -m sleep_aware.capture.smoke --list`로 사용할 camera index를 확인했고,
       검은 화면 경고가 없는 장치를 사용했다.
 - [ ] 얼굴 있음, 눈 감김, 얼굴 없음이 화면과 로그에서 구분된다.
+- [ ] Chrome의 `Apple Events에서 JavaScript 허용`을 켜고 YouTube 탭을 열어 두었다.
 - [ ] Sleep: 미디어 일시정지, 조명 끄기, 세션 시작·종료를 확인했다.
 - [ ] Wake: 미디어 일시정지, 조명 켜기, 부저, 미디어 재생을 확인했다.
 - [ ] Raspberry Pi HTTP 실패가 네 가지 유형으로 구분되어 기록된다. 실행기 경고 로그의
