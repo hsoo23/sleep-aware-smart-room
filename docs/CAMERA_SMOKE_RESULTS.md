@@ -54,9 +54,9 @@ frame capture.
 - inference latency: 중앙값 2.4ms, p95 3.7ms
 - 카메라 앞에 사람이 없어 상태는 전부 `NO_FACE`였고 EAR은 기록되지 않았습니다.
 
-카메라 획득과 Tasks backend 실행 경로는 확인했습니다. 실제 사용자의
-`AWAKE → EYES CLOSED → DROWSY` 상태 전이는 아직 `미실시`이며, latency 값은 개발
-호스트 측정치이므로 RQ3의 edge 근거로 사용하지 않습니다.
+이 150 frame 실행은 카메라 획득과 Tasks backend 실행 경로만 확인합니다. 사용자
+상태 전이는 이 실행에서 검증하지 않았습니다(아래 내장 카메라 실행 참조). latency 값은
+개발 호스트 측정치이므로 RQ3의 edge 근거로 사용하지 않습니다.
 
 ### 카메라 index 확인
 
@@ -82,3 +82,14 @@ macOS가 연속성 카메라를 index 0으로 잡았고, 엎어 둔 iPhone에서
 
 실제 카메라 입력에서 `AWAKE → EYES CLOSED → DROWSY` 전이와 EAR 기록을 확인했습니다.
 실제 장치(조명·부저·미디어) 동작은 이 실행에 포함되지 않습니다(`--actions mock`).
+
+### 2026-09-19 검증 요약
+
+| 항목 | 상태 | 근거 |
+|---|---|---|
+| 카메라 권한과 frame 획득 | 확인 | capture smoke 통과 |
+| Tasks backend 실행 경로 | 확인 | 150 frame 실행, `run_end=completed` |
+| camera index 구분(연속성 카메라 포함) | 확인 | `--list` 결과 |
+| 사용자 상태 전이(`AWAKE → EYES CLOSED → DROWSY`) | 확인 | 내장 카메라 200 frame 실행 |
+| 실제 장치(조명·부저·미디어) 동작 | 미실시 | 모든 실행이 `--actions mock` |
+| Raspberry Pi 성능(RQ3) | 미실시 | 개발 호스트 측정치만 존재 |
