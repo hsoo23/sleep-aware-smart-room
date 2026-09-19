@@ -48,6 +48,19 @@ sleep-aware --input mock --actions mock --intention wake
 - Wake는 `pause_media, light_on, buzzer_alert` 후 `play_media`를 실행한다.
 - 마지막 `run_end.status`가 `completed`이다.
 
+### macOS Chrome 미디어 제어 사전 설정
+
+`--actions host`로 미디어를 이 호스트에서 제어하려면 Chrome 설정을 먼저 켜야 합니다.
+
+1. Chrome 메뉴 → 보기 → 개발자용 → **Apple Events에서 JavaScript 허용**
+2. 터미널(또는 실행 중인 앱)에 Chrome 제어 권한 허용: 시스템 설정 → 개인정보 보호 및
+   보안 → 자동화
+3. YouTube 탭을 열어 둔다.
+
+설정이 꺼져 있으면 AppleScript가 오류 `-1723`을 반환하고, 실행기는
+`error_reason=javascript_not_allowed`와 함께 위 설정 경로를 기록한다. YouTube 탭이
+없으면 `tab_not_found`, 탭은 있으나 video 요소가 없으면 `media_not_found`로 구분된다.
+
 실제 카메라와 Raspberry Pi는 아래 명령으로 검증합니다.
 
 ```bash

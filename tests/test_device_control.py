@@ -65,7 +65,7 @@ def test_media_adapter_executes_chrome_applescript(action: Action, output: str):
 
 def test_media_adapter_reports_missing_video_from_javascript_result():
     def runner(*args, **kwargs):
-        return subprocess.CompletedProcess(args[0], 0, stdout="no video\n", stderr="")
+        return subprocess.CompletedProcess(args[0], 0, stdout="no-video\n", stderr="")
 
     executor = MacOSChromeMediaActionExecutor(
         system="Darwin", runner=runner, clock=ticking_clock(2.0, 2.01)
@@ -218,3 +218,70 @@ def test_composite_closes_remaining_backends_after_a_close_failure():
 def test_composite_requires_a_route_for_every_action():
     with pytest.raises(ValueError, match="missing action routes"):
         CompositeActionExecutor({})
+
+
+def _media_executor(returncode=0, stdout="", stderr=""):
+    def runner(*args, **kwargs):
+        return subprocess.CompletedProcess(args[0], returncode, stdout=stdout, stderr=stderr)
+
+    return MacOSChromeMediaActionExecutor(
+        system="Darwin", runner=runner, clock=ticking_clock(0.0, 0.01)
+    )
+
+
+def test_media_script_targets_the_matched_tab():
+    # Without "in t" Chrome ignores the tab the loop found and returns "missing value".
+    script = MacOSChromeMediaActionExecutor._script("pause")
+
+    assert 'execute javascript "' in script
+    assert '" in t' in script
+
+
+def test_media_adapter_explains_the_chrome_javascript_setting():
+    stderr = '"1+1" in t을(를) 가져올 수 없습니다. 접근이 허용되지 않습니다. (-1723)'
+
+    result = _media_executor(returncode=1, stderr=stderr).execute(Action.PAUSE_MEDIA)
+
+    assert result.error_reason == "javascript_not_allowed"
+    assert "Apple Events에서 JavaScript 허용" in result.detail
+
+
+def test_media_adapter_reports_other_applescript_errors_with_their_number():
+    result = _media_executor(returncode=1, stderr="script error: 무엇인가 (-600)").execute(
+        Action.PLAY_MEDIA
+    )
+
+    assert result.error_reason == "command_failed"
+    assert result.detail == "Chrome AppleScript error -600"
+
+
+def test_media_adapter_reports_a_failure_without_an_error_number():
+    result = _media_executor(returncode=1, stderr="unknown failure").execute(Action.PLAY_MEDIA)
+
+    assert (result.error_reason, result.detail) == ("command_failed", "Chrome media command failed")
+
+
+def test_media_adapter_separates_missing_tab_from_missing_video():
+    no_tab = _media_executor(stdout="no-youtube-tab\n").execute(Action.PAUSE_MEDIA)
+    no_video = _media_executor(stdout="no-video\n").execute(Action.PAUSE_MEDIA)
+
+    assert (no_tab.error_reason, no_tab.detail) == ("tab_not_found", "YouTube tab was not found")
+    assert (no_video.error_reason, no_video.detail) == (
+        "media_not_found",
+        "YouTube video was not found",
+    )
+
+
+def test_media_adapter_flags_unexpected_output():
+    result = _media_executor(stdout="missing value\n").execute(Action.PAUSE_MEDIA)
+
+    assert (result.error_reason, result.detail) == (
+        "unexpected_result",
+        "unexpected Chrome response",
+    )
+
+
+def test_media_adapter_maps_script_errors_returned_through_stdout():
+    result = _media_executor(stdout="applescript-error:-1723\n").execute(Action.PAUSE_MEDIA)
+
+    assert result.error_reason == "javascript_not_allowed"
