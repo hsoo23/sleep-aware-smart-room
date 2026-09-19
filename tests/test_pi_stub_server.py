@@ -86,10 +86,11 @@ def test_stub_rejects_invalid_failure_status():
         PiStubServer(port=0, failure_status=99)
 
 
-@pytest.mark.parametrize("status", [200, 204, 299])
-def test_stub_rejects_success_status_for_failure_rehearsal(status):
-    # The executor treats any 2xx as success, so a 2xx would hide the rehearsal.
-    with pytest.raises(ValueError, match="2xx"):
+@pytest.mark.parametrize("status", [100, 199, 200, 204, 299])
+def test_stub_rejects_non_failure_status_for_failure_rehearsal(status):
+    # 1xx never arrives as a final response and 2xx is recorded as success, so
+    # neither reaches the executor as the failure the rehearsal is meant to show.
+    with pytest.raises(ValueError, match="1xx or 2xx"):
         PiStubServer(port=0, failure_status=status)
 
 

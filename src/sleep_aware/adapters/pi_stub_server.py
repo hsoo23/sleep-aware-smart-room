@@ -58,10 +58,10 @@ class PiStubServer:
     ) -> None:
         if not 100 <= failure_status <= 599:
             raise ValueError("failure_status must be a valid HTTP status code")
-        if 200 <= failure_status <= 299:
-            # The executor records every 2xx response as a success, so a 2xx here
-            # would quietly turn a failure rehearsal into a successful run.
-            raise ValueError("failure_status must not be a 2xx status code")
+        if failure_status <= 299:
+            # 1xx is not a final response and 2xx is recorded as success, so neither
+            # would reach the executor as the failure this rehearsal is meant to show.
+            raise ValueError("failure_status must not be a 1xx or 2xx status code")
         self.executor = MockActionExecutor()
         self._failing_actions = frozenset(failing_actions)
         self._failure_status = failure_status
