@@ -57,6 +57,10 @@
 `미실시`로 표시합니다. latency는 JSONL의 frame별 값에서 계산하며 개발 호스트 값은 이 칸에
 쓰지 않습니다.
 
+하드웨어 없이 수행한 mock 반복 실행과 HTTP stub 검증 결과는
+[HARDWARE_FREE_RESULTS.md](HARDWARE_FREE_RESULTS.md)에 있다. 이 문서의 실제 장치
+검증 칸과 섞지 않는다.
+
 ## 반복 실행 기록(RQ1)
 
 같은 mock 입력과 설정으로 최소 3회 실행하고 run별로 아래 값을 기록합니다.
