@@ -134,6 +134,12 @@ detector에 `ear=None`을 전달하여 `NO_FACE`를 생성합니다. 반면 입�
 변환 또는 MediaPipe 실행이 실패하면 `FaceMeshProcessingError`가 발생하므로 정상적인
 미검출과 처리 오류가 구분됩니다.
 
+Landmark 추출은 두 backend를 지원합니다. legacy `mediapipe.solutions`가 있는 환경에서는
+`MediaPipeFaceMeshProcessor`를, Tasks API만 제공하는 최근 MediaPipe 환경에서는
+`MediaPipeFaceLandmarkerProcessor`를 사용하며 `create_landmark_processor()`가 선택합니다.
+두 backend는 같은 landmark index와 pixel 좌표를 반환하므로 detection, 정책, 로그 계약은
+backend와 무관합니다.
+
 `MediaPipeFaceMeshProcessor`는 legacy와 동일한 왼쪽 눈
 `(33, 160, 158, 133, 153, 144)`, 오른쪽 눈
 `(362, 385, 387, 263, 373, 380)` 순서를 사용합니다. 결과에는 전체 face mesh와

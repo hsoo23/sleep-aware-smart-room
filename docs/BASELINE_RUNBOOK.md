@@ -96,20 +96,48 @@ FACE_MESH_MIN_DETECTION_CONFIDENCE=0.5
 FACE_MESH_MIN_TRACKING_CONFIDENCE=0.5
 ```
 
-Face Mesh processor는 OpenCV와 MediaPipe가 필요하므로 먼저 `host` extra를 설치합니다.
+Landmark processor는 OpenCV와 MediaPipe가 필요하므로 먼저 `host` extra를 설치합니다.
 
 ```bash
 python -m pip install -e '.[dev,host]'
 ```
 
-Face Mesh processor는 native resource를 소유하므로 아래처럼 종료를 보장해야 합니다.
+MediaPipe는 배포 버전에 따라 제공하는 API가 다릅니다.
+
+| 설치된 MediaPipe | 사용하는 backend | 모델 파일 |
+|---|---|---|
+| legacy `mediapipe.solutions` 포함 | `MediaPipeFaceMeshProcessor` | 불필요 |
+| Tasks API만 포함 (최근 wheel) | `MediaPipeFaceLandmarkerProcessor` | `face_landmarker.task` 필요 |
+
+`create_landmark_processor()`가 설치된 버전을 확인해 backend를 고르므로 실행 명령은
+같습니다. Tasks backend를 쓰는 환경에서는 모델을 한 번 내려받습니다. 모델 파일은
+Git 무시 대상인 `models/`에 저장하며 커밋하지 않습니다.
+
+```bash
+python -m sleep_aware.pipeline.face_landmarker --download
+```
+
+경로를 바꾸려면 `FACE_LANDMARKER_MODEL` 또는 `--face-landmarker-model`을 사용합니다.
+두 backend 모두 같은 눈 index와 pixel 좌표를 반환하므로 EAR, 상태 판정, 로그 형식은
+동일합니다. `refine_landmarks` 설정은 legacy backend에만 적용되며 Tasks 모델은 항상
+478개 landmark를 반환합니다.
+
+Landmark processor는 native resource를 소유하므로 아래처럼 종료를 보장해야 합니다.
 
 ```python
-from sleep_aware.pipeline import MediaPipeFaceMeshProcessor
+from sleep_aware.config import settings
+from sleep_aware.pipeline import create_landmark_processor
 
-with MediaPipeFaceMeshProcessor() as landmark_processor:
-    # BaselinePipeline에 landmark_processor를 주입하여 실행합니다.
+with create_landmark_processor(model_path=settings.face_landmarker_model) as processor:
+    # BaselinePipeline에 processor를 주입하여 실행합니다.
     ...
+```
+
+`--no-display`로 카메라를 실행하면 종료 조건이 없으므로 `--max-frames`로 frame 수를
+제한해 재현 가능한 길이의 기록을 남길 수 있습니다.
+
+```bash
+sleep-aware --input camera --actions mock --intention wake --no-display --max-frames 150
 ```
 
 ## Legacy 60/61-frame behavior

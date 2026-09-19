@@ -21,7 +21,23 @@ from sleep_aware.control import Action, ClosedLoopPolicy, Intention
 from sleep_aware.detection import TemporalDrowsinessDetector
 from sleep_aware.eventlog import JsonlEventLogger, RunMetadata, git_revision, new_run_id
 from sleep_aware.eventlog.mock_run import run_mock
-from sleep_aware.pipeline import BaselinePipeline, Frame, MediaPipeFaceMeshProcessor
+from sleep_aware.pipeline import BaselinePipeline, Frame, create_landmark_processor
+
+
+class BoundedFrameSource:
+    """Stop a live source after ``max_frames`` so a run ends without Ctrl+C."""
+
+    def __init__(self, source: Any, max_frames: int) -> None:
+        if max_frames < 1:
+            raise ValueError("max_frames must be positive")
+        self._source = source
+        self._remaining = max_frames
+
+    def read(self) -> Frame | None:
+        if self._remaining <= 0:
+            return None
+        self._remaining -= 1
+        return self._source.read()
 
 
 class DisplayFrameSource:
@@ -69,6 +85,17 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--log-dir", type=Path, default=Path(settings.log_dir))
     parser.add_argument("--ear-threshold", type=float, default=settings.ear_threshold)
     parser.add_argument("--camera-index", type=int, default=settings.camera_index)
+    parser.add_argument(
+        "--max-frames",
+        type=int,
+        default=0,
+        help="카메라 입력에서 처리할 최대 frame 수 (0이면 제한 없음)",
+    )
+    parser.add_argument(
+        "--face-landmarker-model",
+        default=settings.face_landmarker_model,
+        help="MediaPipe Tasks Face Landmarker 모델 경로 (legacy solutions 환경에서는 무시)",
+    )
     parser.add_argument("--display", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument(
         "--allow-insecure-http",
@@ -182,7 +209,8 @@ def run_camera(args: argparse.Namespace) -> Path:
             )
         )
         processor = stack.enter_context(
-            MediaPipeFaceMeshProcessor(
+            create_landmark_processor(
+                model_path=args.face_landmarker_model,
                 max_num_faces=settings.face_mesh_max_num_faces,
                 refine_landmarks=settings.face_mesh_refine_landmarks,
                 min_detection_confidence=settings.face_mesh_min_detection_confidence,
@@ -194,6 +222,8 @@ def run_camera(args: argparse.Namespace) -> Path:
 
             source = DisplayFrameSource(source, cv2)
             stack.callback(source.close)
+        if args.max_frames:
+            source = BoundedFrameSource(source, args.max_frames)
         policy = ClosedLoopPolicy()
         pipeline = BaselinePipeline(
             frame_source=source,

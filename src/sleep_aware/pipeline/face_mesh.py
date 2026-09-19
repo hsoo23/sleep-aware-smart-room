@@ -13,6 +13,38 @@ LEFT_EYE_INDICES = (33, 160, 158, 133, 153, 144)
 RIGHT_EYE_INDICES = (362, 385, 387, 263, 373, 380)
 
 
+def eye_landmarks_from(
+    landmarks: Sequence[Any], width: int, height: int
+) -> EyeLandmarks:
+    """Convert normalized face landmarks into pixel-space eye geometry.
+
+    Shared by the legacy Face Mesh and the Tasks Face Landmarker adapters so both
+    backends produce identical coordinates for the same landmark list.
+    """
+    return EyeLandmarks(
+        left_eye=_points(landmarks, LEFT_EYE_INDICES, width, height),
+        right_eye=_points(landmarks, RIGHT_EYE_INDICES, width, height),
+        face_landmarks=tuple(
+            Point(float(landmark.x * width), float(landmark.y * height))
+            for landmark in landmarks
+        ),
+    )
+
+
+def _points(
+    landmarks: Sequence[Any],
+    indices: tuple[int, int, int, int, int, int],
+    width: int,
+    height: int,
+) -> tuple[Point, Point, Point, Point, Point, Point]:
+    # Pixel-space geometry preserves EAR under non-square camera frames and
+    # matches the legacy implementation's coordinate system.
+    return tuple(
+        Point(float(landmarks[index].x * width), float(landmarks[index].y * height))
+        for index in indices
+    )  # type: ignore[return-value]
+
+
 class FaceMeshProcessingError(RuntimeError):
     """Raised when a frame cannot be processed reliably.
 
@@ -51,7 +83,13 @@ class MediaPipeFaceMeshProcessor:
                 raise RuntimeError(
                     "MediaPipe is required; install the host optional dependencies"
                 ) from error
-            face_mesh_factory = mp.solutions.face_mesh.FaceMesh
+            try:
+                face_mesh_factory = mp.solutions.face_mesh.FaceMesh
+            except AttributeError as error:
+                raise RuntimeError(
+                    "이 MediaPipe 버전에는 legacy solutions API가 없습니다; "
+                    "Tasks 기반 MediaPipeFaceLandmarkerProcessor를 사용하세요"
+                ) from error
 
         self._cv2 = cv2_module
         self._face_mesh = face_mesh_factory(
@@ -90,33 +128,11 @@ class MediaPipeFaceMeshProcessor:
             return None
 
         try:
-            landmarks = faces[0].landmark
-            return EyeLandmarks(
-                left_eye=self._points(landmarks, LEFT_EYE_INDICES, width, height),
-                right_eye=self._points(landmarks, RIGHT_EYE_INDICES, width, height),
-                face_landmarks=tuple(
-                    Point(float(landmark.x * width), float(landmark.y * height))
-                    for landmark in landmarks
-                ),
-            )
+            return eye_landmarks_from(faces[0].landmark, width, height)
         except (IndexError, TypeError, AttributeError) as error:
             raise FaceMeshProcessingError(
                 f"invalid landmarks for frame sequence {frame.sequence}"
             ) from error
-
-    @staticmethod
-    def _points(
-        landmarks: Sequence[Any],
-        indices: tuple[int, int, int, int, int, int],
-        width: int,
-        height: int,
-    ) -> tuple[Point, Point, Point, Point, Point, Point]:
-        # Pixel-space geometry preserves EAR under non-square camera frames and
-        # matches the legacy implementation's coordinate system.
-        return tuple(
-            Point(float(landmarks[index].x * width), float(landmarks[index].y * height))
-            for index in indices
-        )  # type: ignore[return-value]
 
     def close(self) -> None:
         """Release MediaPipe native resources; repeated calls are safe."""

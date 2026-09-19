@@ -20,3 +20,6 @@ results/*
 
 *.egg-info/
 build/
+
+# MediaPipe Tasks model assets (downloaded, never committed)
+models/
