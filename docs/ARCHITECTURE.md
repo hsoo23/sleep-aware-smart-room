@@ -70,7 +70,10 @@ flowchart LR
 
 CLI가 composition root 역할을 하며 core pipeline은 OpenCV, MediaPipe, HTTP 또는
 파일시스템 구현을 직접 import하지 않습니다. `--input mock --actions mock`은 CI와
-로컬 검증용이고, `--input camera --actions real`은 실제 장치 시연용입니다.
+로컬 검증용이고, `--input camera --actions real`은 모든 동작을 Raspberry Pi HTTP로 보내는
+시연용입니다. `--actions host`는 미디어만 시연 호스트(macOS Chrome)에서 실행하고 조명·부저는
+Raspberry Pi HTTP로 보내며, 세션은 로컬 세션 추적기가 담당합니다. 조합은 CLI가 조립하고
+`CompositeActionExecutor`가 action마다 단일 소유 backend로 전달합니다.
 
 ## Module boundaries
 
