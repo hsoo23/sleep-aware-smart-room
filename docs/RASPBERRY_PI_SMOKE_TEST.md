@@ -33,6 +33,30 @@ python -m pytest tests/test_action_executors.py
 `MockActionExecutor.state`에서 `light_on`, `buzzer_alert_count`,
 `media_playing`, `session_active`를 확인한다.
 
+## 하드웨어 없는 stub 검증
+
+Raspberry Pi가 없을 때는 같은 endpoint를 loopback에서 제공하는 stub 서버로 HTTP
+경로를 재현한다.
+
+```bash
+python -m sleep_aware.adapters.pi_stub_server --port 5050
+PI_BASE_URL=http://127.0.0.1:5050 sleep-aware --input camera --actions real --intention wake
+```
+
+stub은 표준 라이브러리만 사용하며 `127.0.0.1`에만 bind한다. 응답은
+`MockActionExecutor`의 상태를 그대로 반영한다. 실패 경로는 다음과 같이 재현한다.
+
+```bash
+# 특정 action에 503을 반환
+python -m sleep_aware.adapters.pi_stub_server --fail-action buzzer_alert --failure-status 503
+# 연결 실패는 stub을 중지한 뒤 실행
+```
+
+이 검증은 요청 경로, 상태 코드 처리, `connection_error` 복구만 확인한다. 조명,
+부저, 미디어의 물리 동작은 확인하지 않으므로 실제 장치 검증으로 기록하지 않는다.
+자동 검증 결과는 `tests/test_pi_stub_server.py`와
+[HARDWARE_FREE_RESULTS.md](HARDWARE_FREE_RESULTS.md)에 있다.
+
 ## 실제 장치 검증
 
 1. 커밋하지 않는 `.env`에 실제 주소와 제한 시간을 설정한다.

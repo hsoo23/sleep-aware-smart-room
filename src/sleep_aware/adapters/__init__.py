@@ -1,4 +1,9 @@
-"""Runtime and hardware-free implementations of pipeline contracts."""
+"""Runtime and hardware-free implementations of pipeline contracts.
+
+``pi_stub_server`` is deliberately not imported here: it is also runnable with
+``python -m sleep_aware.adapters.pi_stub_server``, and importing it eagerly would
+make ``runpy`` execute a second copy of the module. Import it directly instead.
+"""
 
 from .device_control import (
     CompositeActionExecutor,
