@@ -285,3 +285,12 @@ def test_media_adapter_maps_script_errors_returned_through_stdout():
     result = _media_executor(stdout="applescript-error:-1723\n").execute(Action.PAUSE_MEDIA)
 
     assert result.error_reason == "javascript_not_allowed"
+
+
+def test_media_script_keeps_searching_after_a_youtube_tab_without_video():
+    # A YouTube home or search tab must not end the search before a watch tab.
+    script = MacOSChromeMediaActionExecutor._script("play")
+
+    assert 'if jsResult is not "no-video"' in script
+    assert "set sawYouTubeTab to true" in script
+    assert script.index("set sawYouTubeTab to true") < script.index('return "no-youtube-tab"')

@@ -156,19 +156,27 @@ class MacOSChromeMediaActionExecutor:
         )
         return f'''
 tell application "Google Chrome"
+    set sawYouTubeTab to false
     repeat with w in windows
         repeat with t in tabs of w
             if URL of t contains "youtube.com" then
+                set sawYouTubeTab to true
                 try
                     -- "in t" is required; without it Chrome ignores the tab found above.
                     set jsResult to execute javascript "{javascript}" in t
                 on error errorMessage number errorNumber
                     return "{ERROR_PREFIX}" & errorNumber
                 end try
-                return jsResult
+                -- A YouTube home or search tab has no video; keep looking at the rest.
+                if jsResult is not "{NO_VIDEO_MARKER}" then
+                    return jsResult
+                end if
             end if
         end repeat
     end repeat
+    if sawYouTubeTab then
+        return "{NO_VIDEO_MARKER}"
+    end if
     return "{NO_TAB_MARKER}"
 end tell
 '''
