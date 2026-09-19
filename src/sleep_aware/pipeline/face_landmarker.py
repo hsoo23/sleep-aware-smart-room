@@ -30,13 +30,24 @@ DOWNLOAD_HINT = (
 )
 
 
-def download_model(destination: Path | str, *, url: str = MODEL_URL) -> Path:
+DOWNLOAD_TIMEOUT_SECONDS = 60.0
+
+
+def download_model(
+    destination: Path | str,
+    *,
+    url: str = MODEL_URL,
+    timeout: float = DOWNLOAD_TIMEOUT_SECONDS,
+) -> Path:
     """Download the Face Landmarker model; the binary is never committed."""
-    path = Path(destination)
+    path = Path(destination).expanduser()
     path.parent.mkdir(parents=True, exist_ok=True)
     # Written to a temporary name first so an interrupted download is not reused.
     partial = path.with_suffix(path.suffix + ".partial")
-    with urllib.request.urlopen(url) as response, partial.open("wb") as target:  # noqa: S310
+    with (  # noqa: S310 - fixed https model URL
+        urllib.request.urlopen(url, timeout=timeout) as response,
+        partial.open("wb") as target,
+    ):
         target.write(response.read())
     partial.replace(path)
     return path
@@ -57,7 +68,9 @@ class MediaPipeFaceLandmarkerProcessor:
         image_factory: Callable[[Any], Any] | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
-        path = Path(model_path)
+        # ``~`` and relative paths come from the CLI, the environment, and callers,
+        # so normalize once and use the same path for the check and the backend.
+        path = Path(model_path).expanduser().resolve()
         if landmarker_factory is None and not path.is_file():
             raise RuntimeError(f"{DOWNLOAD_HINT} (확인한 경로: {path})")
 

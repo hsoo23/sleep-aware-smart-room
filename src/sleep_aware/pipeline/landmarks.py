@@ -19,7 +19,12 @@ Backend = Literal["solutions", "tasks"]
 
 
 def available_backend(mediapipe_module: Any | None = None) -> Backend:
-    """Return the landmark backend the installed MediaPipe provides."""
+    """Return the landmark backend the installed MediaPipe provides.
+
+    The legacy backend is chosen only when ``solutions.face_mesh.FaceMesh`` is
+    actually importable: some wheels keep the ``solutions`` namespace without the
+    Face Mesh solution, and selecting it there would fail at construction time.
+    """
     if mediapipe_module is None:
         try:
             import mediapipe as mediapipe_module
@@ -27,7 +32,8 @@ def available_backend(mediapipe_module: Any | None = None) -> Backend:
             raise RuntimeError(
                 "MediaPipe is required; install the host optional dependencies"
             ) from error
-    return "solutions" if hasattr(mediapipe_module, "solutions") else "tasks"
+    face_mesh = getattr(getattr(mediapipe_module, "solutions", None), "face_mesh", None)
+    return "solutions" if getattr(face_mesh, "FaceMesh", None) is not None else "tasks"
 
 
 def create_landmark_processor(

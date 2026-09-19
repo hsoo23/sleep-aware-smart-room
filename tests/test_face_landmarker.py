@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
@@ -84,7 +85,7 @@ def test_tasks_backend_produces_the_same_pixel_geometry_as_face_mesh():
     )
     assert len(result.face_landmarks) == 478
     assert options == {
-        "model_path": "unused-in-tests.task",
+        "model_path": str(Path("unused-in-tests.task").resolve()),
         "max_num_faces": 1,
         "min_detection_confidence": 0.5,
         "min_tracking_confidence": 0.5,
@@ -156,7 +157,7 @@ def test_download_model_writes_the_file_atomically(tmp_path, monkeypatch):
 
     monkeypatch.setattr(
         "sleep_aware.pipeline.face_landmarker.urllib.request.urlopen",
-        lambda url: FakeResponse(),
+        lambda url, timeout=None: FakeResponse(),
     )
     destination = tmp_path / "models" / "face_landmarker.task"
 
@@ -164,17 +165,6 @@ def test_download_model_writes_the_file_atomically(tmp_path, monkeypatch):
 
     assert path.read_bytes() == b"model-bytes"
     assert list(tmp_path.glob("models/*.partial")) == []
-
-
-@pytest.mark.parametrize(
-    ("module", "expected"),
-    [
-        (SimpleNamespace(solutions=object(), tasks=object()), "solutions"),
-        (SimpleNamespace(tasks=object()), "tasks"),
-    ],
-)
-def test_available_backend_follows_the_installed_mediapipe(module, expected):
-    assert available_backend(module) == expected
 
 
 def test_factory_builds_the_legacy_processor_when_solutions_exist(monkeypatch):
@@ -205,3 +195,65 @@ def test_factory_builds_the_tasks_processor_when_solutions_are_gone(monkeypatch)
 
 def test_both_processors_are_exported():
     assert MediaPipeFaceMeshProcessor is not MediaPipeFaceLandmarkerProcessor
+
+
+@pytest.mark.parametrize(
+    ("module", "expected"),
+    [
+        (
+            SimpleNamespace(
+                solutions=SimpleNamespace(face_mesh=SimpleNamespace(FaceMesh=object())),
+            ),
+            "solutions",
+        ),
+        # The namespace exists but the Face Mesh solution was dropped from the wheel.
+        (SimpleNamespace(solutions=SimpleNamespace(), tasks=object()), "tasks"),
+        (SimpleNamespace(tasks=object()), "tasks"),
+        (SimpleNamespace(solutions=SimpleNamespace(face_mesh=SimpleNamespace())), "tasks"),
+    ],
+)
+def test_backend_requires_the_face_mesh_solution_itself(module, expected):
+    assert available_backend(module) == expected
+
+
+def test_model_path_is_expanded_and_resolved(monkeypatch, tmp_path):
+    home_model = tmp_path / "models" / "face_landmarker.task"
+    home_model.parent.mkdir(parents=True)
+    home_model.write_bytes(b"model")
+    monkeypatch.setenv("HOME", str(tmp_path))
+    seen = {}
+
+    MediaPipeFaceLandmarkerProcessor(
+        model_path="~/models/face_landmarker.task",
+        cv2_module=FakeCv2,
+        landmarker_factory=lambda **kwargs: seen.update(kwargs) or FakeLandmarker([]),
+        image_factory=lambda rgb: rgb,
+    )
+
+    assert seen["model_path"] == str(home_model.resolve())
+
+
+def test_download_model_uses_a_timeout(tmp_path, monkeypatch):
+    calls = {}
+
+    class FakeResponse:
+        def read(self):
+            return b"model-bytes"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return None
+
+    def fake_urlopen(url, timeout=None):
+        calls["timeout"] = timeout
+        return FakeResponse()
+
+    monkeypatch.setattr(
+        "sleep_aware.pipeline.face_landmarker.urllib.request.urlopen", fake_urlopen
+    )
+
+    download_model(tmp_path / "face_landmarker.task")
+
+    assert calls["timeout"] == pytest.approx(60.0)
