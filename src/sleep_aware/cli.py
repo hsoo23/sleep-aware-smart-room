@@ -8,10 +8,16 @@ from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from typing import Any
 
-from sleep_aware.adapters import MockActionExecutor, RaspberryPiHttpActionExecutor
+from sleep_aware.adapters import (
+    CompositeActionExecutor,
+    MacOSChromeMediaActionExecutor,
+    MockActionExecutor,
+    RaspberryPiHttpActionExecutor,
+    SessionActionExecutor,
+)
 from sleep_aware.capture import OpenCVCameraSource
 from sleep_aware.config import settings
-from sleep_aware.control import ClosedLoopPolicy, Intention
+from sleep_aware.control import Action, ClosedLoopPolicy, Intention
 from sleep_aware.detection import TemporalDrowsinessDetector
 from sleep_aware.eventlog import JsonlEventLogger, RunMetadata, git_revision, new_run_id
 from sleep_aware.eventlog.mock_run import run_mock
@@ -51,9 +57,14 @@ def _parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--actions",
-        choices=("mock", "real"),
+        choices=("mock", "real", "host"),
         default="mock",
-        help="메모리 장치 또는 Raspberry Pi HTTP 동작",
+        help=(
+            "mock: 모든 동작을 메모리 장치로 실행, "
+            "real: 모든 동작을 Raspberry Pi HTTP로 전송, "
+            "host: 미디어는 이 호스트(macOS Chrome), 조명·부저는 Raspberry Pi HTTP, "
+            "세션은 로컬 세션 추적기가 담당"
+        ),
     )
     parser.add_argument("--log-dir", type=Path, default=Path(settings.log_dir))
     parser.add_argument("--ear-threshold", type=float, default=settings.ear_threshold)
@@ -76,8 +87,37 @@ def _add_note(error: BaseException, note: str) -> None:
     notes.append(note)
 
 
+def _build_executor(args: argparse.Namespace) -> Any:
+    """Create the action executor for the requested device combination."""
+    if args.actions == "mock":
+        return MockActionExecutor()
+
+    http_executor = RaspberryPiHttpActionExecutor(
+        base_url=settings.pi_base_url,
+        timeout_seconds=settings.pi_timeout_seconds,
+        allow_insecure_http=args.allow_insecure_http,
+    )
+    if args.actions == "real":
+        return http_executor
+
+    # host: media stays on this machine; the lamp and buzzer remain on the Raspberry Pi.
+    media = MacOSChromeMediaActionExecutor()
+    session = SessionActionExecutor()
+    return CompositeActionExecutor(
+        {
+            Action.PAUSE_MEDIA: media,
+            Action.PLAY_MEDIA: media,
+            Action.LIGHT_OFF: http_executor,
+            Action.LIGHT_ON: http_executor,
+            Action.BUZZER_ALERT: http_executor,
+            Action.START_SESSION: session,
+            Action.END_SESSION: session,
+        }
+    )
+
+
 @contextmanager
-def _closing_executor(executor: RaspberryPiHttpActionExecutor) -> Iterator[None]:
+def _closing_executor(executor: Any) -> Iterator[None]:
     """Close the executor without letting its failure hide an earlier cleanup error."""
     try:
         yield
@@ -131,16 +171,9 @@ def run_camera(args: argparse.Namespace) -> Path:
         # run_end. ExitStack unwinds in reverse, so everything registered below (including
         # executor.close) finishes before the logger writes run_end.
         logger = stack.enter_context(JsonlEventLogger(args.log_dir, metadata))
-        executor: Any
-        if args.actions == "real":
-            executor = RaspberryPiHttpActionExecutor(
-                base_url=settings.pi_base_url,
-                timeout_seconds=settings.pi_timeout_seconds,
-                allow_insecure_http=args.allow_insecure_http,
-            )
+        executor: Any = _build_executor(args)
+        if hasattr(executor, "close"):
             stack.enter_context(_closing_executor(executor))
-        else:
-            executor = MockActionExecutor()
         source: Any = stack.enter_context(
             OpenCVCameraSource(
                 camera_index=args.camera_index,

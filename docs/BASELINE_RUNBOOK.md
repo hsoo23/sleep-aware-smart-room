@@ -55,6 +55,17 @@ sleep-aware --input camera --actions real --intention sleep --display
 sleep-aware --input camera --actions real --intention wake --display
 ```
 
+`--actions`는 어떤 장치가 실제로 동작하는지 결정합니다.
+
+| 값 | 미디어 | 조명·부저 | 세션 | 필요한 환경 |
+|---|---|---|---|---|
+| `mock` | 메모리 | 메모리 | 메모리 | 없음 |
+| `real` | Raspberry Pi HTTP | Raspberry Pi HTTP | Raspberry Pi HTTP | Raspberry Pi 서비스 |
+| `host` | 이 호스트의 macOS Chrome | Raspberry Pi HTTP | 로컬 세션 추적기 | macOS + Chrome, Raspberry Pi 서비스 |
+
+`host`는 미디어를 시연 호스트에서 직접 제어할 때 사용합니다. macOS가 아니면 미디어 action이
+`unsupported_platform`으로 기록되고 나머지 action은 그대로 실행됩니다.
+
 `q` 또는 Escape로 정상 종료합니다. 실패 시 기록 방법은 실패 시점에 따라 다릅니다.
 
 - **로그 초기화 이후 실패**: CLI는 카메라·MediaPipe보다 먼저 JSONL 로그를 엽니다. 따라서
