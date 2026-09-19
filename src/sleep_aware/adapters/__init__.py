@@ -1,4 +1,9 @@
-"""Runtime and hardware-free implementations of pipeline contracts."""
+"""Runtime and hardware-free implementations of pipeline contracts.
+
+``pi_stub_server`` is deliberately not imported here: it is also runnable with
+``python -m sleep_aware.adapters.pi_stub_server``, and importing it eagerly would
+make ``runpy`` execute a second copy of the module. Import it directly instead.
+"""
 
 from .device_control import (
     CompositeActionExecutor,
@@ -8,7 +13,6 @@ from .device_control import (
     SessionState,
 )
 from .mock_action import DeviceState, MockActionExecutor
-from .pi_stub_server import PiStubServer
 from .raspberry_pi_http import ACTION_ENDPOINTS, RaspberryPiHttpActionExecutor
 
 __all__ = [
@@ -17,7 +21,6 @@ __all__ = [
     "DeviceState",
     "MacOSChromeMediaActionExecutor",
     "MockActionExecutor",
-    "PiStubServer",
     "RaspberryPiGpioActionExecutor",
     "RaspberryPiHttpActionExecutor",
     "SessionActionExecutor",

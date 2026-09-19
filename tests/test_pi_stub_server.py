@@ -4,11 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from sleep_aware.adapters import (
-    ACTION_ENDPOINTS,
-    PiStubServer,
-    RaspberryPiHttpActionExecutor,
-)
+from sleep_aware.adapters import ACTION_ENDPOINTS, RaspberryPiHttpActionExecutor
+from sleep_aware.adapters.pi_stub_server import SERVED_ENDPOINTS, PiStubServer
 from sleep_aware.capture import FakeFrameSource
 from sleep_aware.control import Action, ClosedLoopPolicy, Intention
 from sleep_aware.detection import TemporalDrowsinessDetector
@@ -85,8 +82,21 @@ def test_unknown_endpoint_is_not_reported_as_success(stub):
 
 
 def test_stub_rejects_invalid_failure_status():
-    with pytest.raises(ValueError, match="failure_status"):
+    with pytest.raises(ValueError, match="valid HTTP status code"):
         PiStubServer(port=0, failure_status=99)
+
+
+@pytest.mark.parametrize("status", [200, 204, 299])
+def test_stub_rejects_success_status_for_failure_rehearsal(status):
+    # The executor treats any 2xx as success, so a 2xx would hide the rehearsal.
+    with pytest.raises(ValueError, match="2xx"):
+        PiStubServer(port=0, failure_status=status)
+
+
+def test_stub_endpoints_match_the_client_contract():
+    # Declared separately in both modules; drift must fail here rather than pass silently.
+    assert SERVED_ENDPOINTS == {path: action for action, path in ACTION_ENDPOINTS.items()}
+    assert len(SERVED_ENDPOINTS) == len(ACTION_ENDPOINTS) == len(Action)
 
 
 def test_closed_loop_pipeline_drives_the_stub_over_http(stub):

@@ -18,11 +18,21 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
 from sleep_aware.adapters.mock_action import DeviceState, MockActionExecutor
-from sleep_aware.adapters.raspberry_pi_http import ACTION_ENDPOINTS
 from sleep_aware.control import Action
 
 LOOPBACK_HOST = "127.0.0.1"
-_PATH_ACTIONS: Mapping[str, Action] = {path: action for action, path in ACTION_ENDPOINTS.items()}
+
+# Declared independently of the client mapping so a typo on either side fails the
+# integration tests instead of matching itself. See docs/RASPBERRY_PI_SMOKE_TEST.md.
+SERVED_ENDPOINTS: Mapping[str, Action] = {
+    "/actions/media/pause": Action.PAUSE_MEDIA,
+    "/actions/media/play": Action.PLAY_MEDIA,
+    "/actions/light/off": Action.LIGHT_OFF,
+    "/actions/light/on": Action.LIGHT_ON,
+    "/actions/buzzer/alert": Action.BUZZER_ALERT,
+    "/actions/session/start": Action.START_SESSION,
+    "/actions/session/end": Action.END_SESSION,
+}
 
 
 class _QuietThreadingHTTPServer(ThreadingHTTPServer):
@@ -48,6 +58,10 @@ class PiStubServer:
     ) -> None:
         if not 100 <= failure_status <= 599:
             raise ValueError("failure_status must be a valid HTTP status code")
+        if 200 <= failure_status <= 299:
+            # The executor records every 2xx response as a success, so a 2xx here
+            # would quietly turn a failure rehearsal into a successful run.
+            raise ValueError("failure_status must not be a 2xx status code")
         self.executor = MockActionExecutor()
         self._failing_actions = frozenset(failing_actions)
         self._failure_status = failure_status
@@ -93,7 +107,7 @@ class PiStubServer:
         self.close()
 
     def _handle(self, path: str) -> tuple[int, dict[str, Any]]:
-        action = _PATH_ACTIONS.get(path)
+        action = SERVED_ENDPOINTS.get(path)
         if action is None:
             return 404, {"error": "unknown endpoint"}
         if action in self._failing_actions:
