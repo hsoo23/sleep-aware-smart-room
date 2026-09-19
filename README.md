@@ -137,6 +137,15 @@ sleep-aware --input camera --actions real --intention wake --display
 장치 없이 카메라 경로만 확인할 때는 `--actions mock`을 사용하고, 표시 창이 필요 없으면
 `--no-display`를 지정합니다.
 
+하드웨어 없이 Raspberry Pi HTTP 경로를 확인하려면 loopback stub 서버를 사용합니다.
+
+```bash
+python -m sleep_aware.adapters.pi_stub_server --port 5050
+```
+
+stub은 실제 장치 검증을 대체하지 않습니다. 검증 범위는
+[docs/HARDWARE_FREE_RESULTS.md](docs/HARDWARE_FREE_RESULTS.md)를 참고하세요.
+
 ## Ablation plan
 
 | Stage | Detector |

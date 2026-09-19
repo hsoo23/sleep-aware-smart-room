@@ -8,6 +8,7 @@ from .device_control import (
     SessionState,
 )
 from .mock_action import DeviceState, MockActionExecutor
+from .pi_stub_server import PiStubServer
 from .raspberry_pi_http import ACTION_ENDPOINTS, RaspberryPiHttpActionExecutor
 
 __all__ = [
@@ -16,6 +17,7 @@ __all__ = [
     "DeviceState",
     "MacOSChromeMediaActionExecutor",
     "MockActionExecutor",
+    "PiStubServer",
     "RaspberryPiGpioActionExecutor",
     "RaspberryPiHttpActionExecutor",
     "SessionActionExecutor",
