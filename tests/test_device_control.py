@@ -59,7 +59,7 @@ def test_media_adapter_executes_chrome_applescript(action: Action, output: str):
     assert result.elapsed_ms == pytest.approx(25.0)
     assert calls[0][0][0][:2] == ["osascript", "-e"]
     script = calls[0][0][0][2]
-    assert "set jsResult to execute javascript" in script
+    assert "set jsResult to execute t javascript" in script
     assert "return jsResult" in script
 
 
@@ -230,11 +230,10 @@ def _media_executor(returncode=0, stdout="", stderr=""):
 
 
 def test_media_script_targets_the_matched_tab():
-    # Without "in t" Chrome ignores the tab the loop found and returns "missing value".
+    # Chrome must be told which tab to run the script in, or it ignores the loop's tab.
     script = MacOSChromeMediaActionExecutor._script("pause")
 
-    assert 'execute javascript "' in script
-    assert '" in t' in script
+    assert "execute t javascript " in script
 
 
 def test_media_adapter_explains_the_chrome_javascript_setting():
@@ -294,3 +293,19 @@ def test_media_script_keeps_searching_after_a_youtube_tab_without_video():
     assert 'if jsResult is not "no-video"' in script
     assert "set sawYouTubeTab to true" in script
     assert script.index("set sawYouTubeTab to true") < script.index('return "no-youtube-tab"')
+
+
+def test_media_script_passes_the_tab_as_the_direct_parameter():
+    """Chrome's dictionary defines the tab as the direct parameter of ``execute``.
+
+    ``execute javascript "..." in t`` is not valid Chrome syntax and AppleScript
+    reports it as error -1723, which is easily mistaken for a permission problem.
+    """
+    script = MacOSChromeMediaActionExecutor._script("pause")
+
+    assert "execute t javascript " in script
+    assert "execute javascript " not in script
+    # "repeat with t in tabs of w" legitimately contains " in t", so check the call form.
+    assert 'javascript "' in script
+    call_lines = [line for line in script.splitlines() if 'javascript "' in line]
+    assert call_lines and not any(line.rstrip().endswith(" in t") for line in call_lines)

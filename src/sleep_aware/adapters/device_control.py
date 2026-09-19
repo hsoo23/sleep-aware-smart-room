@@ -162,8 +162,9 @@ tell application "Google Chrome"
             if URL of t contains "youtube.com" then
                 set sawYouTubeTab to true
                 try
-                    -- "in t" is required; without it Chrome ignores the tab found above.
-                    set jsResult to execute javascript "{javascript}" in t
+                    -- Chrome takes the tab as the direct parameter of "execute"; the
+                    -- other spelling is invalid and AppleScript reports it as -1723.
+                    set jsResult to execute t javascript "{javascript}"
                 on error errorMessage number errorNumber
                     return "{ERROR_PREFIX}" & errorNumber
                 end try
