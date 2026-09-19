@@ -39,3 +39,28 @@ frame capture.
 카메라 획득과 Tasks backend 실행 경로는 확인했습니다. 실제 사용자의
 `AWAKE → EYES CLOSED → DROWSY` 상태 전이는 아직 `미실시`이며, latency 값은 개발
 호스트 측정치이므로 RQ3의 edge 근거로 사용하지 않습니다.
+
+### 카메라 index 확인
+
+`python -m sleep_aware.capture.smoke --list` 결과입니다.
+
+| index | 장치 | shape | 평균 밝기 | 비고 |
+|---|---|---|---|---|
+| 0 | iPhone15,2 (연속성 카메라) | (480, 640, 3) | 0.1 | 검은 화면 경고 |
+| 1 | MacBook Pro 카메라 | (480, 640, 3) | 112.5 | 정상 |
+
+macOS가 연속성 카메라를 index 0으로 잡았고, 엎어 둔 iPhone에서 검은 frame이
+들어왔습니다. 위의 150 frame 실행이 전부 `NO_FACE`였던 원인입니다. 코드 오류가 아니라
+입력 장치 문제이며, 이후 실행은 내장 카메라(index 1)를 사용했습니다.
+
+### CLI 카메라 실행 (내장 카메라, 사용자 있음)
+
+- Command: `sleep-aware --input camera --actions mock --intention wake --no-display --max-frames 200 --camera-index 1`
+- Result: `run_end.status=completed`, frame 200개, 30.0 FPS
+- 상태 전이: `AWAKE → EYES_CLOSED → AWAKE → EYES_CLOSED → DROWSY → AWAKE`
+- 상태 분포: AWAKE 26, EYES_CLOSED 148, DROWSY 26
+- EAR: 200 frame 모두 기록, 범위 0.015 ~ 0.314
+- inference latency: 중앙값 8.7ms, p95 12.9ms (개발 호스트 측정치이며 RQ3 edge 근거가 아니다)
+
+실제 카메라 입력에서 `AWAKE → EYES CLOSED → DROWSY` 전이와 EAR 기록을 확인했습니다.
+실제 장치(조명·부저·미디어) 동작은 이 실행에 포함되지 않습니다(`--actions mock`).

@@ -151,6 +151,25 @@ timestamp부터 `DROWSY_SECONDS`(기본 2.0초)가 경과하면 `DROWSY` 상태�
 같은 관측에서 생성합니다. 따라서 기본 30 FPS에서는 legacy의 61번째-frame action
 시점에 대응하며, 낮거나 불규칙한 FPS에서도 시간 조건은 유지됩니다.
 
+## 카메라 선택
+
+macOS는 근처에 iPhone이 있으면 연속성 카메라를 index 0으로 잡습니다. 이때 iPhone이
+엎어져 있거나 잠겨 있으면 검은 frame이 들어오고, 파이프라인은 오류 없이 `NO_FACE`만
+기록합니다. 실험 기록만 보면 "얼굴을 찾지 못했다"로 보이므로 실행 전에 index를
+확인한다.
+
+```bash
+python -m sleep_aware.capture.smoke --list
+```
+
+각 index의 해상도와 평균 밝기를 출력하고, 검은 화면이면 경고를 표시한다. 내장
+카메라를 쓰려면 확인한 index를 `--camera-index` 또는 `CAMERA_INDEX`로 지정한다.
+`sleep_aware.capture.smoke`는 단일 index 실행에서도 마지막 frame이 검은 화면이면
+경고와 함께 종료 코드 `2`를 반환한다.
+
+시연 기록에는 사용한 camera index와 장치 종류(내장 카메라 또는 연속성 카메라)를
+반드시 적는다. 두 장치는 해상도와 FPS가 다르므로 latency 비교에 영향을 준다.
+
 ## Camera smoke test
 
 Run this separately on a development host with a webcam and the `host` extra
