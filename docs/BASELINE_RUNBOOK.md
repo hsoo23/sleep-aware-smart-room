@@ -96,20 +96,48 @@ FACE_MESH_MIN_DETECTION_CONFIDENCE=0.5
 FACE_MESH_MIN_TRACKING_CONFIDENCE=0.5
 ```
 
-Face Mesh processor는 OpenCV와 MediaPipe가 필요하므로 먼저 `host` extra를 설치합니다.
+Landmark processor는 OpenCV와 MediaPipe가 필요하므로 먼저 `host` extra를 설치합니다.
 
 ```bash
 python -m pip install -e '.[dev,host]'
 ```
 
-Face Mesh processor는 native resource를 소유하므로 아래처럼 종료를 보장해야 합니다.
+MediaPipe는 배포 버전에 따라 제공하는 API가 다릅니다.
+
+| 설치된 MediaPipe | 사용하는 backend | 모델 파일 |
+|---|---|---|
+| legacy `mediapipe.solutions` 포함 | `MediaPipeFaceMeshProcessor` | 불필요 |
+| Tasks API만 포함 (최근 wheel) | `MediaPipeFaceLandmarkerProcessor` | `face_landmarker.task` 필요 |
+
+`create_landmark_processor()`가 설치된 버전을 확인해 backend를 고르므로 실행 명령은
+같습니다. Tasks backend를 쓰는 환경에서는 모델을 한 번 내려받습니다. 모델 파일은
+Git 무시 대상인 `models/`에 저장하며 커밋하지 않습니다.
+
+```bash
+python -m sleep_aware.pipeline.face_landmarker --download
+```
+
+경로를 바꾸려면 `FACE_LANDMARKER_MODEL` 또는 `--face-landmarker-model`을 사용합니다.
+두 backend 모두 같은 눈 index와 pixel 좌표를 반환하므로 EAR, 상태 판정, 로그 형식은
+동일합니다. `refine_landmarks` 설정은 legacy backend에만 적용되며 Tasks 모델은 항상
+478개 landmark를 반환합니다.
+
+Landmark processor는 native resource를 소유하므로 아래처럼 종료를 보장해야 합니다.
 
 ```python
-from sleep_aware.pipeline import MediaPipeFaceMeshProcessor
+from sleep_aware.config import settings
+from sleep_aware.pipeline import create_landmark_processor
 
-with MediaPipeFaceMeshProcessor() as landmark_processor:
-    # BaselinePipeline에 landmark_processor를 주입하여 실행합니다.
+with create_landmark_processor(model_path=settings.face_landmarker_model) as processor:
+    # BaselinePipeline에 processor를 주입하여 실행합니다.
     ...
+```
+
+`--no-display`로 카메라를 실행하면 종료 조건이 없으므로 `--max-frames`로 frame 수를
+제한해 재현 가능한 길이의 기록을 남길 수 있습니다.
+
+```bash
+sleep-aware --input camera --actions mock --intention wake --no-display --max-frames 150
 ```
 
 ## Legacy 60/61-frame behavior
@@ -122,6 +150,25 @@ frame부터 action을 실행했습니다. 30 FPS를 가정하면 첫 감김 fram
 timestamp부터 `DROWSY_SECONDS`(기본 2.0초)가 경과하면 `DROWSY` 상태와 policy action을
 같은 관측에서 생성합니다. 따라서 기본 30 FPS에서는 legacy의 61번째-frame action
 시점에 대응하며, 낮거나 불규칙한 FPS에서도 시간 조건은 유지됩니다.
+
+## 카메라 선택
+
+macOS는 근처에 iPhone이 있으면 연속성 카메라를 index 0으로 잡습니다. 이때 iPhone이
+엎어져 있거나 잠겨 있으면 검은 frame이 들어오고, 파이프라인은 오류 없이 `NO_FACE`만
+기록합니다. 실험 기록만 보면 "얼굴을 찾지 못했다"로 보이므로 실행 전에 index를
+확인한다.
+
+```bash
+python -m sleep_aware.capture.smoke --list
+```
+
+각 index의 해상도와 평균 밝기를 출력하고, 검은 화면이면 경고를 표시한다. 내장
+카메라를 쓰려면 확인한 index를 `--camera-index` 또는 `CAMERA_INDEX`로 지정한다.
+`sleep_aware.capture.smoke`는 단일 index 실행에서도 마지막 frame이 검은 화면이면
+경고와 함께 종료 코드 `2`를 반환한다.
+
+시연 기록에는 사용한 camera index와 장치 종류(내장 카메라 또는 연속성 카메라)를
+반드시 적는다. 두 장치는 해상도와 FPS가 다르므로 latency 비교에 영향을 준다.
 
 ## Camera smoke test
 

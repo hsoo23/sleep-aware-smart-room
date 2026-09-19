@@ -4,9 +4,9 @@ from types import SimpleNamespace
 import pytest
 
 from sleep_aware.adapters import MockActionExecutor, RaspberryPiHttpActionExecutor
-from sleep_aware.cli import _build_executor, _close_pipeline, main
+from sleep_aware.cli import BoundedFrameSource, _build_executor, _close_pipeline, main
 from sleep_aware.control import Action
-from sleep_aware.pipeline import ActionResult
+from sleep_aware.pipeline import ActionResult, Frame
 
 
 @pytest.mark.parametrize(
@@ -113,7 +113,7 @@ def test_cli_records_executor_close_failure_in_run_end(tmp_path, capsys, monkeyp
 
     monkeypatch.setattr("sleep_aware.cli.RaspberryPiHttpActionExecutor", FailingCloseExecutor)
     monkeypatch.setattr("sleep_aware.cli.OpenCVCameraSource", EmptyCamera)
-    monkeypatch.setattr("sleep_aware.cli.MediaPipeFaceMeshProcessor", Processor)
+    monkeypatch.setattr("sleep_aware.cli.create_landmark_processor", lambda **kw: Processor())
 
     exit_code = main(
         ["--input", "camera", "--actions", "real", "--no-display", "--log-dir", str(tmp_path)]
@@ -158,7 +158,7 @@ def test_cli_keeps_cleanup_error_primary_when_executor_close_also_fails(
 
     monkeypatch.setattr("sleep_aware.cli.RaspberryPiHttpActionExecutor", FailingCloseExecutor)
     monkeypatch.setattr("sleep_aware.cli.OpenCVCameraSource", EmptyCamera)
-    monkeypatch.setattr("sleep_aware.cli.MediaPipeFaceMeshProcessor", EmptyCamera)
+    monkeypatch.setattr("sleep_aware.cli.create_landmark_processor", lambda **kw: EmptyCamera())
     monkeypatch.setattr("sleep_aware.cli._close_pipeline", fail_cleanup)
 
     exit_code = main(
@@ -240,3 +240,28 @@ def test_host_actions_track_sleep_sessions_locally():
         assert executor.execute(Action.END_SESSION).succeeded
     finally:
         executor.close()
+
+
+def test_bounded_frame_source_stops_after_the_requested_frames():
+    class Endless:
+        def __init__(self):
+            self.reads = 0
+
+        def read(self):
+            self.reads += 1
+            return Frame(self.reads, float(self.reads), object())
+
+    endless = Endless()
+    bounded = BoundedFrameSource(endless, 3)
+
+    frames = []
+    while (frame := bounded.read()) is not None:
+        frames.append(frame)
+
+    assert [frame.sequence for frame in frames] == [1, 2, 3]
+    assert endless.reads == 3
+
+
+def test_bounded_frame_source_rejects_non_positive_limits():
+    with pytest.raises(ValueError, match="max_frames"):
+        BoundedFrameSource(object(), 0)

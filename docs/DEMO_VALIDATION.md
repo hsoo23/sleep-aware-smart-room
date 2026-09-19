@@ -13,6 +13,8 @@
 ### 실제 장치 검증
 
 - [ ] 카메라 권한과 실제 frame 획득을 확인했다.
+- [ ] `python -m sleep_aware.capture.smoke --list`로 사용할 camera index를 확인했고,
+      검은 화면 경고가 없는 장치를 사용했다.
 - [ ] 얼굴 있음, 눈 감김, 얼굴 없음이 화면과 로그에서 구분된다.
 - [ ] Sleep: 미디어 일시정지, 조명 끄기, 세션 시작·종료를 확인했다.
 - [ ] Wake: 미디어 일시정지, 조명 켜기, 부저, 미디어 재생을 확인했다.
@@ -33,6 +35,7 @@
 | 실행 명령 | |
 | 의도(Sleep/Wake) | |
 | OS·Python | |
+| 카메라 장치·index (내장/연속성 카메라 구분) | |
 | 카메라·해상도·FPS | |
 | Raspberry Pi·relay·buzzer | |
 | JSONL 로그 경로 | |
