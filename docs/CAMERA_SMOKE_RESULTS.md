@@ -93,3 +93,24 @@ macOS가 연속성 카메라를 index 0으로 잡았고, 엎어 둔 iPhone에서
 | 사용자 상태 전이(`AWAKE → EYES CLOSED → DROWSY`) | 확인 | 내장 카메라 200 frame 실행 |
 | 실제 장치(조명·부저·미디어) 동작 | 미실시 | 모든 실행이 `--actions mock` |
 | Raspberry Pi 성능(RQ3) | 미실시 | 개발 호스트 측정치만 존재 |
+
+## 2026-09-19 macOS Chrome 미디어 제어
+
+- Git commit: `main` + 이 PR의 구문 수정
+- 환경: macOS, Google Chrome 153.0.8010.48, YouTube watch 페이지 1개
+- 사전 설정: 보기 → 개발자용 → Apple Events에서 JavaScript 허용 켬
+
+| 단계 | 반환값 | 영상 상태 |
+|---|---|---|
+| 초기 | - | `playing` |
+| `play_media` | `play` | `playing` |
+| `pause_media` | `pause` | `paused` |
+
+실행기 결과: `pause_media`, `play_media`, `pause_media` 모두 `succeeded=True`,
+소요 시간 131~166ms.
+
+수정 전에는 AppleScript 구문 오류(`execute javascript ... in t`)로 오류 `-1723`이
+발생했고, 오류 번호가 권한 거부와 같아 Chrome 설정 문제로 오인했습니다. 올바른 구문은
+탭을 직접 파라미터로 주는 `execute t javascript "..."`입니다.
+
+조명·부저·세션 동작은 이 확인에 포함되지 않습니다(Raspberry Pi 필요).

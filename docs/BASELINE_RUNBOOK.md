@@ -57,9 +57,11 @@ sleep-aware --input mock --actions mock --intention wake
    보안 → 자동화
 3. YouTube 탭을 열어 둔다.
 
-설정이 꺼져 있으면 AppleScript가 오류 `-1723`을 반환하고, 실행기는
-`error_reason=javascript_not_allowed`와 함께 위 설정 경로를 기록한다. YouTube 탭이
-없으면 `tab_not_found`, 탭은 있으나 video 요소가 없으면 `media_not_found`로 구분된다.
+설정이 꺼져 있으면 실행기는 AppleScript 오류 번호를 기록한다. 오류 `-1723`은
+`error_reason=javascript_not_allowed`로 분류하고 위 설정 경로를 안내한다. 다만 같은
+번호는 AppleScript 구문 오류에서도 발생하므로, 설정을 켰는데도 계속 나오면 스크립트
+구문을 함께 확인한다. YouTube 탭이 없으면 `tab_not_found`, 탭은 있으나 video 요소가
+없으면 `media_not_found`로 구분된다.
 
 실제 카메라와 Raspberry Pi는 아래 명령으로 검증합니다.
 
