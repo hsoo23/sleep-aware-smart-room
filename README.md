@@ -133,6 +133,17 @@ host extra와 환경 변수를 설정한 뒤 다음과 같이 실행합니다.
 sleep-aware --input camera --actions real --intention wake --display
 ```
 
+`--actions`는 어떤 장치가 실제로 동작하는지 결정합니다.
+
+| 값 | 미디어 | 조명·부저 | 세션 | 필요한 환경 |
+|---|---|---|---|---|
+| `mock` | 메모리 | 메모리 | 메모리 | 없음 |
+| `real` | Raspberry Pi HTTP | Raspberry Pi HTTP | Raspberry Pi HTTP | Raspberry Pi 서비스 |
+| `host` | 이 호스트의 macOS Chrome | Raspberry Pi HTTP | 로컬 세션 추적기 | macOS + Chrome, Raspberry Pi 서비스 |
+
+`host`는 미디어를 시연 호스트에서 직접 제어할 때 사용합니다. macOS가 아니면 미디어 action이
+`unsupported_platform`으로 기록되고 나머지 action은 그대로 실행됩니다.
+
 화면에서 `q` 또는 Escape를 누르면 카메라·MediaPipe·표시 창이 정리된 뒤 종료됩니다.
 장치 없이 카메라 경로만 확인할 때는 `--actions mock`을 사용하고, 표시 창이 필요 없으면
 `--no-display`를 지정합니다.

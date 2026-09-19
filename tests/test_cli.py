@@ -1,8 +1,12 @@
 import json
+from types import SimpleNamespace
 
 import pytest
 
-from sleep_aware.cli import _close_pipeline, main
+from sleep_aware.adapters import MockActionExecutor, RaspberryPiHttpActionExecutor
+from sleep_aware.cli import _build_executor, _close_pipeline, main
+from sleep_aware.control import Action
+from sleep_aware.pipeline import ActionResult
 
 
 @pytest.mark.parametrize(
@@ -168,3 +172,71 @@ def test_cli_keeps_cleanup_error_primary_when_executor_close_also_fails(
     (log_path,) = tmp_path.glob("*.jsonl")
     end = json.loads(log_path.read_text().splitlines()[-1])
     assert (end["status"], end["error_type"]) == ("failed", "RuntimeError")
+
+
+def _args(**overrides):
+    defaults = {
+        "actions": "mock",
+        "allow_insecure_http": True,
+    }
+    defaults.update(overrides)
+    return SimpleNamespace(**defaults)
+
+
+def test_mock_actions_use_the_in_memory_executor():
+    assert isinstance(_build_executor(_args(actions="mock")), MockActionExecutor)
+
+
+def test_real_actions_send_every_action_over_http():
+    executor = _build_executor(_args(actions="real"))
+
+    assert isinstance(executor, RaspberryPiHttpActionExecutor)
+    executor.close()
+
+
+def test_host_actions_keep_media_on_this_host_and_devices_on_the_pi(monkeypatch):
+    class RecordingBackend:
+        def __init__(self, name, **kwargs):
+            self.name = name
+            self.actions = []
+
+        def execute(self, action):
+            self.actions.append(action)
+            return ActionResult(action=action, succeeded=True)
+
+        def close(self):
+            pass
+
+    media = RecordingBackend("media")
+    http = RecordingBackend("http")
+    monkeypatch.setattr("sleep_aware.cli.MacOSChromeMediaActionExecutor", lambda **kw: media)
+    monkeypatch.setattr("sleep_aware.cli.RaspberryPiHttpActionExecutor", lambda **kw: http)
+
+    executor = _build_executor(_args(actions="host"))
+    for action in Action:
+        assert executor.execute(action).succeeded
+
+    assert media.actions == [Action.PAUSE_MEDIA, Action.PLAY_MEDIA]
+    assert http.actions == [Action.LIGHT_OFF, Action.LIGHT_ON, Action.BUZZER_ALERT]
+
+
+def test_host_actions_report_unsupported_platform_for_media_off_macos(monkeypatch):
+    monkeypatch.setattr("sleep_aware.adapters.device_control.platform.system", lambda: "Linux")
+
+    executor = _build_executor(_args(actions="host"))
+    try:
+        result = executor.execute(Action.PAUSE_MEDIA)
+    finally:
+        executor.close()
+
+    assert not result.succeeded
+    assert result.error_reason == "unsupported_platform"
+
+
+def test_host_actions_track_sleep_sessions_locally():
+    executor = _build_executor(_args(actions="host"))
+    try:
+        assert executor.execute(Action.START_SESSION).succeeded
+        assert executor.execute(Action.END_SESSION).succeeded
+    finally:
+        executor.close()
