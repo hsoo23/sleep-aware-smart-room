@@ -68,7 +68,11 @@ Install hardware/runtime extras only on the relevant machine:
 # Host camera and detection
 python -m pip install -e '.[host,server]'
 
-# Raspberry Pi server
+# Raspberry Pi server (see docs/RASPBERRY_PI_SMOKE_TEST.md)
+python -m pip install -e '.[raspberrypi]'
+python -m sleep_aware.adapters.pi_service
+
+# Original prototype in legacy/ only
 python -m pip install -e '.[server,raspberrypi]'
 ```
 

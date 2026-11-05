@@ -63,7 +63,9 @@ sleep-aware --input mock --actions mock --intention wake
 구문을 함께 확인한다. YouTube 탭이 없으면 `tab_not_found`, 탭은 있으나 video 요소가
 없으면 `media_not_found`로 구분된다.
 
-실제 카메라와 Raspberry Pi는 아래 명령으로 검증합니다.
+실제 카메라와 Raspberry Pi는 아래 명령으로 검증합니다. 먼저 Raspberry Pi에서
+`python -m sleep_aware.adapters.pi_service`를 실행합니다. 자세한 절차는
+[RASPBERRY_PI_SMOKE_TEST.md](RASPBERRY_PI_SMOKE_TEST.md)를 따릅니다.
 
 ```bash
 sleep-aware --input camera --actions real --intention sleep --display
@@ -75,7 +77,7 @@ sleep-aware --input camera --actions real --intention wake --display
 | 값 | 미디어 | 조명·부저 | 세션 | 필요한 환경 |
 |---|---|---|---|---|
 | `mock` | 메모리 | 메모리 | 메모리 | 없음 |
-| `real` | Raspberry Pi HTTP | Raspberry Pi HTTP | Raspberry Pi HTTP | Raspberry Pi 서비스 |
+| `real` | Raspberry Pi HTTP (물리 동작 없음) | Raspberry Pi HTTP | Raspberry Pi HTTP | Raspberry Pi 서비스 |
 | `host` | 이 호스트의 macOS Chrome | Raspberry Pi HTTP | 로컬 세션 추적기 | macOS + Chrome, Raspberry Pi 서비스 |
 
 `host`는 미디어를 시연 호스트에서 직접 제어할 때 사용합니다. macOS가 아니면 미디어 action이
