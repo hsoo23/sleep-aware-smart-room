@@ -1,10 +1,22 @@
 import json
+import os
+import signal
+import sys
+import time
 from types import SimpleNamespace
 
 import pytest
 
+from sleep_aware import cli
 from sleep_aware.adapters import MockActionExecutor, RaspberryPiHttpActionExecutor
-from sleep_aware.cli import BoundedFrameSource, _build_executor, _close_pipeline, main
+from sleep_aware.cli import (
+    BoundedFrameSource,
+    DisplayFrameSource,
+    _build_executor,
+    _close_pipeline,
+    _require_display,
+    main,
+)
 from sleep_aware.control import Action
 from sleep_aware.pipeline import ActionResult, Frame
 
@@ -265,3 +277,64 @@ def test_bounded_frame_source_stops_after_the_requested_frames():
 def test_bounded_frame_source_rejects_non_positive_limits():
     with pytest.raises(ValueError, match="max_frames"):
         BoundedFrameSource(object(), 0)
+
+
+class _DisplayFailure(Exception):
+    pass
+
+
+class _FakeOpenCv:
+    error = _DisplayFailure
+
+    def imshow(self, *_):
+        raise _DisplayFailure("can't open display")
+
+
+class _OneFrameSource:
+    def read(self):
+        return Frame(0, 0.0, None)
+
+
+def test_display_failure_becomes_a_reported_runtime_error():
+    source = DisplayFrameSource(_OneFrameSource(), _FakeOpenCv())
+
+    with pytest.raises(RuntimeError, match="--no-display"):
+        source.read()
+
+
+@pytest.mark.parametrize(
+    ("environment", "fails"),
+    [({}, True), ({"DISPLAY": ":0"}, False), ({"WAYLAND_DISPLAY": "wayland-0"}, False)],
+)
+def test_linux_without_a_display_fails_before_opencv_can_abort(monkeypatch, environment, fails):
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.delenv("DISPLAY", raising=False)
+    monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
+    for name, value in environment.items():
+        monkeypatch.setenv(name, value)
+
+    if fails:
+        with pytest.raises(RuntimeError, match="--no-display"):
+            _require_display()
+    else:
+        _require_display()
+
+
+@pytest.mark.parametrize("name", ["SIGTERM", "SIGHUP"])
+def test_termination_signals_reach_the_cleanup_path(monkeypatch, name):
+    number = getattr(signal, name)
+    before = signal.getsignal(number)
+    cleaned = []
+
+    def terminated(_args):
+        try:
+            os.kill(os.getpid(), number)
+            time.sleep(5)
+        finally:
+            cleaned.append(True)
+
+    monkeypatch.setattr(cli, "run_camera", terminated)
+
+    assert cli.main(["--input", "camera"]) == 130
+    assert cleaned == [True]
+    assert signal.getsignal(number) == before
