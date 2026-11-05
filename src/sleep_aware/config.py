@@ -4,6 +4,12 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# Variables already in the environment win, so one command can still override `.env`.
+load_dotenv(Path.cwd() / ".env", override=False)
 
 
 def _float(name: str, default: float) -> float:
