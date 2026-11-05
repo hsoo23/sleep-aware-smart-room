@@ -9,6 +9,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -24,7 +25,9 @@ _LOAD_SETTINGS = (
 )
 
 
-def _run_config(env_overrides: dict[str, str]) -> subprocess.CompletedProcess[str]:
+def _run_config(
+    env_overrides: dict[str, str], cwd: Path | None = None
+) -> subprocess.CompletedProcess[str]:
     env = {key: value for key, value in os.environ.items() if key not in SETTING_ENV_NAMES}
     env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(ROOT / "src"), env.get("PYTHONPATH")]))
     env.update(env_overrides)
@@ -33,13 +36,15 @@ def _run_config(env_overrides: dict[str, str]) -> subprocess.CompletedProcess[st
         capture_output=True,
         text=True,
         env=env,
+        # A developer's own .env in the repository must not change these results.
+        cwd=cwd or tempfile.gettempdir(),
         check=False,
         timeout=30,
     )
 
 
-def _load_settings(env_overrides: dict[str, str]) -> dict:
-    completed = _run_config(env_overrides)
+def _load_settings(env_overrides: dict[str, str], cwd: Path | None = None) -> dict:
+    completed = _run_config(env_overrides, cwd)
     assert completed.returncode == 0, completed.stderr
     return json.loads(completed.stdout)
 
@@ -87,6 +92,23 @@ def test_config_invalid_numeric_environment_value_fails_at_import(name, value):
 
     assert completed.returncode != 0
     assert "ValueError" in completed.stderr
+
+
+def test_config_reads_dotenv_from_the_working_directory(tmp_path):
+    (tmp_path / ".env").write_text("PI_BASE_URL=http://pi.local:5050\nRELAY_PIN=22\n")
+
+    loaded = _load_settings({}, cwd=tmp_path)
+
+    assert loaded["pi_base_url"] == "http://pi.local:5050"
+    assert loaded["relay_pin"] == 22
+
+
+def test_config_environment_takes_precedence_over_dotenv(tmp_path):
+    (tmp_path / ".env").write_text("RELAY_PIN=22\n")
+
+    loaded = _load_settings({"RELAY_PIN": "23"}, cwd=tmp_path)
+
+    assert loaded["relay_pin"] == 23
 
 
 def test_config_settings_are_immutable():

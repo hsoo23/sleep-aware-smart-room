@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import os
+import signal
+import sys
 from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
@@ -22,6 +25,8 @@ from sleep_aware.detection import TemporalDrowsinessDetector
 from sleep_aware.eventlog import JsonlEventLogger, RunMetadata, git_revision, new_run_id
 from sleep_aware.eventlog.mock_run import run_mock
 from sleep_aware.pipeline import BaselinePipeline, Frame, create_landmark_processor
+
+NO_DISPLAY_HINT = "화면이 없는 환경에서는 --no-display를 사용하세요"
 
 
 class BoundedFrameSource:
@@ -49,8 +54,11 @@ class DisplayFrameSource:
 
     def read(self) -> Frame | None:
         frame = self._source.read()
-        self._opencv.imshow("sleep-aware-smart-room", frame.payload)
-        key = self._opencv.waitKey(1) & 0xFF
+        try:
+            self._opencv.imshow("sleep-aware-smart-room", frame.payload)
+            key = self._opencv.waitKey(1) & 0xFF
+        except self._opencv.error as error:
+            raise RuntimeError(f"화면을 표시하지 못했습니다. {NO_DISPLAY_HINT}") from error
         return None if key in {ord("q"), 27} else frame
 
     def close(self) -> None:
@@ -143,6 +151,34 @@ def _build_executor(args: argparse.Namespace) -> Any:
     )
 
 
+def _require_display() -> None:
+    """Fail clearly on a headless Linux host, where OpenCV's GUI backend may abort the process.
+
+    An abort skips every cleanup below, so this has to be decided before ``imshow``.
+    """
+    if sys.platform == "linux" and not (
+        os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
+    ):
+        raise RuntimeError(f"DISPLAY가 설정되어 있지 않습니다. {NO_DISPLAY_HINT}")
+
+
+def _interrupt(*_: object) -> None:
+    raise KeyboardInterrupt
+
+
+@contextmanager
+def _cleanup_on_termination() -> Iterator[None]:
+    """Route SIGTERM and SIGHUP (kill, a dropped SSH session) through the cleanup path."""
+    names = ("SIGTERM", "SIGHUP")
+    numbers = [getattr(signal, name) for name in names if hasattr(signal, name)]
+    previous = {number: signal.signal(number, _interrupt) for number in numbers}
+    try:
+        yield
+    finally:
+        for number, handler in previous.items():
+            signal.signal(number, handler)
+
+
 @contextmanager
 def _closing_executor(executor: Any) -> Iterator[None]:
     """Close the executor without letting its failure hide an earlier cleanup error."""
@@ -218,6 +254,7 @@ def run_camera(args: argparse.Namespace) -> Path:
             )
         )
         if args.display:
+            _require_display()
             import cv2
 
             source = DisplayFrameSource(source, cv2)
@@ -254,9 +291,10 @@ def main(argv: list[str] | None = None) -> int:
                 failing_action=None,
             )
         else:
-            path = run_camera(args)
+            with _cleanup_on_termination():
+                path = run_camera(args)
     except KeyboardInterrupt:
-        print("사용자 요청으로 안전하게 종료했습니다.")
+        print("중단 요청으로 안전하게 종료했습니다.")
         return 130
     except (OSError, RuntimeError, ValueError) as error:
         print(f"실행 실패: {error}")
