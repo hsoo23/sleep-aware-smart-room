@@ -59,6 +59,19 @@ python -m sleep_aware.adapters.pi_stub_server --fail-action buzzer_alert --failu
 
 ## 실제 장치 검증
 
+### 배선
+
+BCM 번호 기준이며 `.env`의 `RELAY_PIN`, `BUZZER_PIN`으로 바꿀 수 있다. legacy 구성과 같다.
+
+| 장치 | 신호 | 물리 핀 |
+|---|---|---|
+| 릴레이 IN (active-low) | GPIO17 | 11 |
+| 부저 | GPIO18 | 12 |
+
+릴레이가 켜지는 조건은 IN이 GND로 당겨질 때이고, 꺼질 때는 핀을 입력으로 바꿔 놓아 준다.
+다른 극성의 릴레이 보드는 조명 on/off가 반대로 동작한다. 전원을 넣기 전에 장치와 Pi의 GND
+연결, 부하 측 전원을 확인한다.
+
 ### 서비스 기동
 
 Raspberry Pi에서 실행한다. 저장소 루트의 `.env`에서 `RELAY_PIN`, `BUZZER_PIN`을 읽는다.
@@ -161,5 +174,17 @@ CPU와 memory는 JSONL에 없으므로 별도로 기록한다. 예를 들어 `sy
 ```bash
 pidstat -u -r -h -p <sleep-aware pid> 1 > results/pidstat-<run_id>.txt
 ```
+
+### 로그 요약
+
+`DEMO_VALIDATION.md`의 FPS, latency, 상태 전이, action 결과 칸은 JSONL에서 계산한다. p95는
+nearest-rank 방식이다.
+
+```bash
+python -m sleep_aware.eventlog.summary results/logs/<run_id>.jsonl
+```
+
+action이 없는 frame의 control latency는 거의 0이므로 전체 frame 중앙값은 장치 제어 비용을
+보여 주지 못한다. 장치 비용은 `action frame` 행으로 보고, 표본 수(`n`)가 작으면 함께 적는다.
 
 실제 주소, HTTP 응답 본문, 참가자 또는 이메일 정보는 결과 파일에도 남기지 않는다.
