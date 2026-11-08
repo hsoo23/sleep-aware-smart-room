@@ -87,8 +87,8 @@ class MediaPipeFaceMeshProcessor:
                 face_mesh_factory = mp.solutions.face_mesh.FaceMesh
             except AttributeError as error:
                 raise RuntimeError(
-                    "이 MediaPipe 버전에는 legacy solutions API가 없습니다; "
-                    "Tasks 기반 MediaPipeFaceLandmarkerProcessor를 사용하세요"
+                    "This MediaPipe version has no legacy solutions API; "
+                    "use the Tasks-based MediaPipeFaceLandmarkerProcessor"
                 ) from error
 
         self._cv2 = cv2_module

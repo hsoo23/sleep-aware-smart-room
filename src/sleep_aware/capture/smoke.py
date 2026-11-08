@@ -17,7 +17,7 @@ PROBE_FRAMES = 15
 
 def _parser() -> argparse.ArgumentParser:
     """Build the command-line parser using environment-backed defaults."""
-    parser = argparse.ArgumentParser(description="연결된 카메라의 프레임 입력을 확인합니다.")
+    parser = argparse.ArgumentParser(description="Check frame capture from an attached camera.")
     parser.add_argument("--camera-index", type=int, default=settings.camera_index)
     parser.add_argument("--width", type=int, default=settings.camera_width)
     parser.add_argument("--height", type=int, default=settings.camera_height)
@@ -25,7 +25,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--list",
         action="store_true",
-        help="사용 가능한 카메라 index를 순서대로 열어 해상도와 평균 밝기를 보고합니다",
+        help="Probe camera indices and report image shape and mean brightness",
     )
     parser.add_argument("--list-max-index", type=int, default=3)
     return parser
@@ -73,21 +73,21 @@ def probe_cameras(
 def _print_reports(reports: list[dict[str, Any]]) -> None:
     for report in reports:
         if not report["usable"]:
-            print(f"index {report['index']}: 사용 불가 ({report['detail']})")
+            print(f"index {report['index']}: unavailable ({report['detail']})")
             continue
         brightness = report["mean_brightness"]
         note = ""
         if brightness is not None and brightness < BLACK_FRAME_MEAN:
-            note = "  ← 검은 화면입니다. 렌즈 가림 또는 연속성 카메라(iPhone)를 확인하세요"
-        shown = "알 수 없음" if brightness is None else f"{brightness:.1f}"
-        print(f"index {report['index']}: shape={report['shape']}, 평균 밝기={shown}{note}")
+            note = "  <- black frame; check lens cover or Continuity Camera (iPhone)"
+        shown = "unknown" if brightness is None else f"{brightness:.1f}"
+        print(f"index {report['index']}: shape={report['shape']}, mean_brightness={shown}{note}")
 
 
 def main() -> int:
     """Capture a finite frame sample and report whether the camera is usable."""
     args = _parser().parse_args()
     if args.frames < 1:
-        raise SystemExit("--frames는 1 이상이어야 합니다.")
+        raise SystemExit("--frames must be at least 1")
 
     if args.list:
         reports = probe_cameras(args.list_max_index, args.width, args.height)
@@ -105,22 +105,22 @@ def main() -> int:
             for _ in range(args.frames - 1):
                 last = source.read()
     except CameraSourceError as error:
-        print(f"카메라 smoke test 실패: {error}")
+        print(f"Camera smoke test failed: {error}")
         return 1
 
     shape = getattr(last.payload, "shape", None)
     duration = last.timestamp - first.timestamp
     brightness = _mean_brightness(last.payload)
     print(
-        "카메라 smoke test 통과: "
+        "Camera smoke test passed: "
         f"index={source.camera_index}, frames={args.frames}, "
         f"shape={shape}, monotonic_duration={duration:.3f}s"
     )
     if brightness is not None and brightness < BLACK_FRAME_MEAN:
         print(
-            "경고: 마지막 프레임이 검은 화면입니다(평균 밝기 "
-            f"{brightness:.1f}). 렌즈 가림 또는 다른 카메라 index를 확인하세요. "
-            "--list 로 사용 가능한 index를 비교할 수 있습니다."
+            "Warning: the last frame is black (mean brightness "
+            f"{brightness:.1f}). Check the lens or another camera index. "
+            "Use --list to compare available indices."
         )
         return 2
     return 0

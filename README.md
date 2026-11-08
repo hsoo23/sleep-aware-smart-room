@@ -1,189 +1,117 @@
 # Sleep-Aware Smart Room
 
-Private research repository for a **real-time, personalized, intention-aware edge-AI drowsiness detection and closed-loop smart-room control system**.
-
-The project extends the submitted *AI-Based Sleep-Aware Media and Smart Room Control System*. The original prototype uses MediaPipe Face Mesh and EAR to classify `AWAKE`, `EYES CLOSED`, and `DROWSY`, then applies different media/light/buzzer actions for Sleep Aid and Wake-up intentions.
-
-## Research objective
-
-The journal study evaluates the complete combination of:
-
-- personal-baseline adaptive EAR detection;
-- PERCLOS and head-pose feature improvements;
-- subject-independent / LOSO generalization;
-- robustness to illumination, distance, and face-angle variation;
-- lightweight Raspberry Pi execution;
-- intention-aware closed-loop IoT control.
-
-The research value is the integrated system and quantitative validation, not EAR or MediaPipe alone.
+This repository extends the original *AI-Based Sleep-Aware Media and Smart Room Control System* toward an international journal study. The original prototype uses MediaPipe Face Mesh and a fixed eye aspect ratio (EAR) threshold to drive Sleep Aid and Wake-up actions. The proposed research contribution is the integrated system **if** its detection, generalization, robustness, edge performance, and intention-aware control are demonstrated quantitatively.
 
 ## Current status
 
-- **Phase 1:** literature review and research proposal approved
-- **Phase 2:** code cleanup and reproducible fixed-EAR baseline in progress
-- **Phase 3:** Adaptive EAR, PERCLOS, and head pose planned
-- **Phase 4:** participant-disjoint dataset collection after the baseline is stable
+| Area | Status | Evidence or remaining work |
+|---|---|---|
+| Phase 1 literature review | Approved | Research direction and RQ1–RQ6 approved as proposed contributions |
+| Phase 2 software baseline | Implemented | Fixed-EAR CLI, closed-loop policy, mock/stub adapters, Pi action service, JSONL logging, and CI |
+| Hardware-free tests | Available | Unit, mock pipeline, and HTTP stub tests; these do not validate physical devices |
+| Development-host camera and Chrome | Limited checks recorded | See [camera results](docs/CAMERA_SMOKE_RESULTS.md); these are not Raspberry Pi results |
+| Raspberry Pi relay, lamp, and buzzer | Reported operational by the team | The run command, device observations, and log still need to be recorded in the [physical-device checklist](docs/RASPBERRY_PI_SMOKE_TEST.md) |
+| Full Sleep/Wake hardware loop | Team reports working functions; evidence pending | Record the observed actions, recovery, and device restoration for each mode |
+| Raspberry Pi edge inference | Verification pending | Install camera/MediaPipe on Pi 4 and measure FPS, inference and end-to-end latency, CPU, and memory |
+| Phase 3 detector | Planned | Adaptive EAR and PERCLOS modules exist but are not integrated or shown to improve the baseline; head pose remains planned |
+| Phase 4 dataset and journal claims | Planned | Participant-disjoint protocol, ground truth, comparisons, and ablations remain |
 
-## Repository layout
+The original code is preserved in [legacy/](legacy/README.md). Its web dashboard is a local static page in `legacy/index.html`; it calls the original `/set_config` and `/start_detection` APIs. The current CLI and Pi action service use different interfaces, so displaying the dashboard does **not** demonstrate the current baseline. Legacy runtime files remain unchanged for provenance.
 
-```text
-.
-├── src/sleep_aware/
-│   ├── config.py
-│   ├── capture/            # OpenCV and deterministic fake frame sources
-│   ├── detection/          # EAR, adaptive calibration, PERCLOS, temporal state
-│   ├── pipeline/           # Face Mesh adapter, contracts, fixed-EAR orchestration
-│   ├── control/            # intention-aware closed-loop policy
-│   └── eventlog/           # structured JSONL run logs and latency records
-├── legacy/                 # original submitted working prototype (preserved verbatim)
-├── config/                 # future versioned non-secret experiment configs
-├── data/                   # raw/processed contents excluded from Git
-├── results/                # generated experiment outputs excluded from Git
-├── docs/
-│   ├── ARCHITECTURE.md
-│   ├── CLOSED_LOOP_POLICY.md
-│   ├── RESEARCH_PLAN.md
-│   ├── LOGGING_SCHEMA.md
-│   ├── DEMO_VALIDATION.md
-│   └── EXPERIMENT_LOG_TEMPLATE.md
-├── tests/
-├── .env.example
-└── pyproject.toml
-```
+## Research questions
 
-## Quick start for the clean core
+| RQ | Focus |
+|---|---|
+| RQ1 | Adaptive EAR versus fixed EAR, including false detections |
+| RQ2 | Generalization to unseen users |
+| RQ3 | Lighting, face-angle, and camera-distance robustness |
+| RQ4 | Real-time Raspberry Pi 4 inference and end-to-end latency |
+| RQ5 | Accuracy, speed, CPU/memory, and computation trade-offs |
+| RQ6 | Appropriateness of Sleep/Wake intention-aware control |
 
-Python 3.10 or later is recommended.
+Every major experiment, table, and figure should address at least one RQ. See the [research plan](docs/RESEARCH_PLAN.md).
+
+## Repository map
+
+- `src/sleep_aware/capture/`: OpenCV camera and deterministic frame sources
+- `src/sleep_aware/pipeline/`: landmark adapters, contracts, and baseline orchestration
+- `src/sleep_aware/detection/`: EAR, temporal state, and preliminary adaptive/PERCLOS modules
+- `src/sleep_aware/control/`: intention-aware closed-loop policy
+- `src/sleep_aware/adapters/`: mock, Raspberry Pi HTTP, GPIO service, and host media control
+- `src/sleep_aware/eventlog/`: structured JSONL events and run summary
+- `docs/`: architecture, runbooks, verification evidence, and experiment templates
+- `legacy/`: original submitted prototype, preserved for comparison
+- `data/`, `results/`: Git-ignored experiment data and generated outputs
+- `tests/`: automated unit and integration tests
+
+## Installation and software checks
+
+Use Python 3.10 or later. A development environment for hardware-free tests:
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
 python -m pip install -e '.[dev]'
-pytest
-```
-
-Install hardware/runtime extras only on the relevant machine:
-
-```bash
-# Host camera and detection
-python -m pip install -e '.[host,server]'
-
-# Raspberry Pi server (see docs/RASPBERRY_PI_SMOKE_TEST.md)
-python -m pip install -e '.[raspberrypi]'
-python -m sleep_aware.adapters.pi_service
-
-# Original prototype in legacy/ only
-python -m pip install -e '.[server,raspberrypi]'
-```
-
-Copy `.env.example` to `.env` and set local values. Never commit `.env`.
-
-## Reproducing the submitted baseline
-
-The original prototype is preserved in `legacy/` and remains the behavioral reference while functionality is migrated into testable modules. The legacy system requires the original MacBook/Raspberry Pi hardware and software environment; it is not a hardware-free smoke test.
-
-1. Start `legacy/pi_server.py` on Raspberry Pi.
-2. Configure local URLs and launcher path from environment-specific values.
-3. Start `legacy/launcher_server.py` on the host.
-4. Open `legacy/index.html` and select Sleep Aid or Wake-up mode.
-5. Confirm the full loop: detection -> action -> re-observation -> restoration/transition.
-
-The legacy media controller currently depends on macOS, Google Chrome, AppleScript, and YouTube. Raspberry Pi GPIO functionality requires the physical relay and buzzer setup.
-
-For a hardware-free verification of the migrated decision logic, run:
-
-```bash
+ruff check src tests
 python -m compileall -q src tests
-python -m pytest
+python -m pytest -q
 ```
 
-The first command checks syntax and imports that do not require optional camera
-or GPIO packages. The second command requires the development extra from the
-Quick start section.
+Copy `.env.example` to an untracked `.env` and set machine-specific values. Install `.[host]` on the camera/MediaPipe host and `.[raspberrypi]` on Raspberry Pi. The [baseline runbook](docs/BASELINE_RUNBOOK.md) gives the full setup. CI runs hardware-free checks only.
 
-GitHub Actions runs Ruff and pytest on Python 3.10–3.13 for every pull request
-without camera, MediaPipe, or GPIO packages. A passing CI run is not hardware
-validation; see [docs/CONTINUOUS_INTEGRATION.md](docs/CONTINUOUS_INTEGRATION.md).
+## Run the fixed-EAR baseline (B0)
 
-The in-memory device executor and Raspberry Pi HTTP adapter are documented in
-[the Raspberry Pi smoke-test guide](docs/RASPBERRY_PI_SMOKE_TEST.md). Keep local
-mock results separate from physical-device observations.
-
-After installing the `host` extra, verify an attached webcam separately from CI:
-
-```bash
-python -m sleep_aware.capture.smoke
-```
-
-Camera index and requested resolution default to `CAMERA_INDEX`,
-`CAMERA_WIDTH`, and `CAMERA_HEIGHT` from the environment. See
-[docs/BASELINE_RUNBOOK.md](docs/BASELINE_RUNBOOK.md) for the manual result fields.
-
-## Baseline CLI
-
-하드웨어 없이 전체 폐루프와 구조화 로그를 재현하려면 다음 명령을 사용합니다.
+Reproduce both software-only closed loops:
 
 ```bash
 sleep-aware --input mock --actions mock --intention sleep
 sleep-aware --input mock --actions mock --intention wake
 ```
 
-두 mock 실행은 고정된 `AWAKE → EYES_CLOSED → DROWSY → AWAKE` 시나리오를
-사용하고, Sleep/Wake 의도별 동작과 run metadata·Git commit이 포함된 JSONL 로그를
-`results/logs/`에 기록합니다. 실제 카메라와 Raspberry Pi HTTP 동작을 연결하려면
-host extra와 환경 변수를 설정한 뒤 다음과 같이 실행합니다.
+Both use a deterministic state sequence and write JSONL logs under `results/logs/`. To use a camera after installing `.[host]`, first identify a usable camera:
 
 ```bash
-sleep-aware --input camera --actions real --intention wake --display
+python -m sleep_aware.capture.smoke --list
+sleep-aware --input camera --actions mock --intention wake --no-display --max-frames 150
 ```
 
-`--actions`는 어떤 장치가 실제로 동작하는지 결정합니다.
-
-| 값 | 미디어 | 조명·부저 | 세션 | 필요한 환경 |
-|---|---|---|---|---|
-| `mock` | 메모리 | 메모리 | 메모리 | 없음 |
-| `real` | Raspberry Pi HTTP | Raspberry Pi HTTP | Raspberry Pi HTTP | Raspberry Pi 서비스 |
-| `host` | 이 호스트의 macOS Chrome | Raspberry Pi HTTP | 로컬 세션 추적기 | macOS + Chrome, Raspberry Pi 서비스 |
-
-`host`는 미디어를 시연 호스트에서 직접 제어할 때 사용합니다. macOS가 아니면 미디어 action이
-`unsupported_platform`으로 기록되고 나머지 action은 그대로 실행됩니다.
-
-화면에서 `q` 또는 Escape를 누르면 카메라·MediaPipe·표시 창이 정리된 뒤 종료됩니다.
-장치 없이 카메라 경로만 확인할 때는 `--actions mock`을 사용하고, 표시 창이 필요 없으면
-`--no-display`를 지정합니다.
-
-하드웨어 없이 Raspberry Pi HTTP 경로를 확인하려면 loopback stub 서버를 사용합니다.
+For the physical setup, run the Pi service and establish the SSH tunnel in the [Pi guide](docs/RASPBERRY_PI_SMOKE_TEST.md). On the macOS host, `--actions host` controls YouTube in Chrome and sends lamp/buzzer actions to the Pi:
 
 ```bash
-python -m sleep_aware.adapters.pi_stub_server --port 5050
+sleep-aware --input camera --actions host --intention sleep --camera-index 0
+sleep-aware --input camera --actions host --intention wake --camera-index 0
 ```
 
-stub은 실제 장치 검증을 대체하지 않습니다. 검증 범위는
-[docs/HARDWARE_FREE_RESULTS.md](docs/HARDWARE_FREE_RESULTS.md)를 참고하세요.
+Select the verified camera index. Quit a displayed run with `q` or Escape. Use `--no-display --max-frames N` on a headless machine. The `--actions real` mode sends all actions to Pi HTTP; its media endpoints report success without physical media control. The Pi service alone executes actions and does not run AI inference.
 
-## Ablation plan
+| Action mode | Media | Lamp and buzzer | Session |
+|---|---|---|---|
+| `mock` | In-memory | In-memory | In-memory |
+| `real` | Pi HTTP acknowledgement only | Pi HTTP / GPIO | Pi service memory |
+| `host` | macOS Chrome | Pi HTTP / GPIO | Host memory |
+
+A passing mock or HTTP stub run must not be reported as a hardware demonstration. Record physical results in the [demo validation form](docs/DEMO_VALIDATION.md).
+
+On 2026-11-09, a team member reported that the functions worked after connecting
+the Raspberry Pi. This is a user report, not an independently reviewed run
+record: the command, device-by-device observations, and JSONL log have not yet
+been supplied. It does not establish Pi-based AI inference or edge performance.
+
+## Closed-loop design and ablation plan
+
+```text
+state detection -> intention-dependent actuation -> re-observation -> device restoration or policy transition
+```
+
+The [architecture](docs/ARCHITECTURE.md) distinguishes the current B0 implementation from the planned B1–B3 design. The [policy specification](docs/CLOSED_LOOP_POLICY.md) details state transitions and retries.
 
 | Stage | Detector |
 |---|---|
 | B0 | Fixed EAR |
 | B1 | Adaptive EAR |
 | B2 | Adaptive EAR + PERCLOS |
-| B3 | Adaptive EAR + PERCLOS + Head Pose |
+| B3 | Adaptive EAR + PERCLOS + head pose |
 
-See [docs/RESEARCH_PLAN.md](docs/RESEARCH_PLAN.md) for the experimental protocol and metrics.
+## Privacy
 
-## Closed-loop architecture
-
-The system does not stop after an alert:
-
-```text
-state detection -> intention-dependent actuation -> re-observation -> restoration/policy transition
-```
-
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the complete workflow and
-[docs/CLOSED_LOOP_POLICY.md](docs/CLOSED_LOOP_POLICY.md) for the mode-specific
-state transitions and action sequences.
-
-## Privacy and secrets
-
-Participant data, credentials, email app passwords, and local network details must not be committed. Review [SECURITY.md](SECURITY.md) before data collection.
+Keep participant data, photos/videos, credentials, personal network addresses, and generated logs out of Git. See [SECURITY.md](SECURITY.md).

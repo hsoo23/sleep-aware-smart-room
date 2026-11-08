@@ -237,16 +237,16 @@ def test_media_script_targets_the_matched_tab():
 
 
 def test_media_adapter_explains_the_chrome_javascript_setting():
-    stderr = '"1+1" in t을(를) 가져올 수 없습니다. 접근이 허용되지 않습니다. (-1723)'
+    stderr = 'Can\'t get "1+1" in t. Access is not allowed. (-1723)'
 
     result = _media_executor(returncode=1, stderr=stderr).execute(Action.PAUSE_MEDIA)
 
     assert result.error_reason == "javascript_not_allowed"
-    assert "Apple Events에서 JavaScript 허용" in result.detail
+    assert "Allow JavaScript from Apple Events" in result.detail
 
 
 def test_media_adapter_reports_other_applescript_errors_with_their_number():
-    result = _media_executor(returncode=1, stderr="script error: 무엇인가 (-600)").execute(
+    result = _media_executor(returncode=1, stderr="script error: something (-600)").execute(
         Action.PLAY_MEDIA
     )
 

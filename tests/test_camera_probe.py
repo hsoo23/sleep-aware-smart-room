@@ -90,7 +90,7 @@ def test_black_frames_are_called_out_in_the_listing(capsys, fake_opencv):
         smoke.probe_cameras(max_index=0, width=640, height=480, frames=1)
     )
 
-    assert "검은 화면" in capsys.readouterr().out
+    assert "black frame" in capsys.readouterr().out
 
 
 def test_bright_frames_are_not_flagged(capsys, fake_opencv):
@@ -100,4 +100,4 @@ def test_bright_frames_are_not_flagged(capsys, fake_opencv):
         smoke.probe_cameras(max_index=0, width=640, height=480, frames=1)
     )
 
-    assert "검은 화면" not in capsys.readouterr().out
+    assert "black frame" not in capsys.readouterr().out

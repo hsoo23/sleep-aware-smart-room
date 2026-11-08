@@ -27,11 +27,11 @@ def _elapsed_ms(clock: Callable[[], float], started_at: float) -> float:
 
 
 # AppleScript error raised when Chrome refuses "execute javascript"; the operator has
-# to enable 보기 → 개발자용 → Apple Events에서 JavaScript 허용.
+# to enable View > Developer > Allow JavaScript from Apple Events.
 CHROME_JAVASCRIPT_DENIED = -1723
 JAVASCRIPT_DISABLED_HINT = (
-    "Chrome이 Apple Events의 JavaScript 실행을 거부했습니다. "
-    "보기 → 개발자용 → Apple Events에서 JavaScript 허용을 켜세요"
+    "Chrome denied JavaScript execution from Apple Events. "
+    "Enable View > Developer > Allow JavaScript from Apple Events"
 )
 # osascript reports the denial before the script runs, so ``try`` cannot catch it and
 # the number only appears on stderr.

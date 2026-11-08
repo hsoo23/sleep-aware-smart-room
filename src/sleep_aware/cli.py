@@ -26,7 +26,7 @@ from sleep_aware.eventlog import JsonlEventLogger, RunMetadata, git_revision, ne
 from sleep_aware.eventlog.mock_run import run_mock
 from sleep_aware.pipeline import BaselinePipeline, Frame, create_landmark_processor
 
-NO_DISPLAY_HINT = "화면이 없는 환경에서는 --no-display를 사용하세요"
+NO_DISPLAY_HINT = "Use --no-display in a headless environment"
 
 
 class BoundedFrameSource:
@@ -58,7 +58,7 @@ class DisplayFrameSource:
             self._opencv.imshow("sleep-aware-smart-room", frame.payload)
             key = self._opencv.waitKey(1) & 0xFF
         except self._opencv.error as error:
-            raise RuntimeError(f"화면을 표시하지 못했습니다. {NO_DISPLAY_HINT}") from error
+            raise RuntimeError(f"Could not display frames. {NO_DISPLAY_HINT}") from error
         return None if key in {ord("q"), 27} else frame
 
     def close(self) -> None:
@@ -71,23 +71,23 @@ def _parser() -> argparse.ArgumentParser:
         "--intention",
         choices=[item.value for item in Intention],
         default=Intention.WAKE.value,
-        help="폐루프 동작 의도",
+        help="Intention for closed-loop control",
     )
     parser.add_argument(
         "--input",
         choices=("mock", "camera"),
         default="mock",
-        help="결정적 mock 시나리오 또는 실제 카메라 입력",
+        help="Deterministic mock scenario or live camera input",
     )
     parser.add_argument(
         "--actions",
         choices=("mock", "real", "host"),
         default="mock",
         help=(
-            "mock: 모든 동작을 메모리 장치로 실행, "
-            "real: 모든 동작을 Raspberry Pi HTTP로 전송, "
-            "host: 미디어는 이 호스트(macOS Chrome), 조명·부저는 Raspberry Pi HTTP, "
-            "세션은 로컬 세션 추적기가 담당"
+            "mock: execute all actions in memory; "
+            "real: send all actions to Raspberry Pi HTTP; "
+            "host: control media on this host (macOS Chrome), light and buzzer "
+            "through Raspberry Pi HTTP, and sessions locally"
         ),
     )
     parser.add_argument("--log-dir", type=Path, default=Path(settings.log_dir))
@@ -97,18 +97,18 @@ def _parser() -> argparse.ArgumentParser:
         "--max-frames",
         type=int,
         default=0,
-        help="카메라 입력에서 처리할 최대 frame 수 (0이면 제한 없음)",
+        help="Maximum camera frames to process (0 means unlimited)",
     )
     parser.add_argument(
         "--face-landmarker-model",
         default=settings.face_landmarker_model,
-        help="MediaPipe Tasks Face Landmarker 모델 경로 (legacy solutions 환경에서는 무시)",
+        help="MediaPipe Tasks Face Landmarker model path (ignored by legacy solutions)",
     )
     parser.add_argument("--display", action=argparse.BooleanOptionalAction, default=True)
     parser.add_argument(
         "--allow-insecure-http",
         action="store_true",
-        help="격리된 개발망에서 Raspberry Pi 평문 HTTP를 명시적으로 허용",
+        help="Explicitly allow plain HTTP to a Raspberry Pi on an isolated network",
     )
     return parser
 
@@ -159,7 +159,7 @@ def _require_display() -> None:
     if sys.platform == "linux" and not (
         os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
     ):
-        raise RuntimeError(f"DISPLAY가 설정되어 있지 않습니다. {NO_DISPLAY_HINT}")
+        raise RuntimeError(f"DISPLAY is not set. {NO_DISPLAY_HINT}")
 
 
 def _interrupt(*_: object) -> None:
@@ -188,7 +188,7 @@ def _closing_executor(executor: Any) -> Iterator[None]:
         try:
             executor.close()
         except Exception as close_error:  # noqa: BLE001 - keep the primary error.
-            _add_note(error, f"장치 실행기 종료도 실패했습니다: {close_error}")
+            _add_note(error, f"Action executor cleanup also failed: {close_error}")
         raise
     executor.close()
 
@@ -201,7 +201,7 @@ def _close_pipeline(pipeline: BaselinePipeline, policy: ClosedLoopPolicy) -> Non
     """
     pipeline.close()
     if policy.has_pending_cleanup:
-        raise RuntimeError("종료 정리 동작이 완료되지 않았습니다. 장치 상태를 직접 확인하세요")
+        raise RuntimeError("Cleanup did not complete. Check the physical device state")
 
 
 def run_camera(args: argparse.Namespace) -> Path:
@@ -284,7 +284,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.input == "mock":
             if args.actions != "mock":
-                raise ValueError("mock 입력은 안전한 mock 동작과 함께 사용해야 합니다")
+                raise ValueError("Mock input must be used with mock actions")
             path = run_mock(
                 args.log_dir,
                 Intention(args.intention),
@@ -294,12 +294,12 @@ def main(argv: list[str] | None = None) -> int:
             with _cleanup_on_termination():
                 path = run_camera(args)
     except KeyboardInterrupt:
-        print("중단 요청으로 안전하게 종료했습니다.")
+        print("Stopped safely after interruption.")
         return 130
     except (OSError, RuntimeError, ValueError) as error:
-        print(f"실행 실패: {error}")
+        print(f"Run failed: {error}")
         for note in getattr(error, "__notes__", ()):
-            print(f"추가 실패: {note}")
+            print(f"Additional failure: {note}")
         return 1
     print(path)
     return 0

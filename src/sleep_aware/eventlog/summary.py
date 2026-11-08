@@ -106,48 +106,48 @@ def summarize(records: Iterable[dict[str, Any]]) -> RunSummary:
 
 def _stats_line(label: str, stats: LatencyStats | None) -> str:
     if stats is None:
-        return f"{label}: 표본 없음"
-    return f"{label}: 중앙값 {stats.median_ms:.1f} / p95 {stats.p95_ms:.1f} (n={stats.count})"
+        return f"{label}: no samples"
+    return f"{label}: median {stats.median_ms:.1f} / p95 {stats.p95_ms:.1f} (n={stats.count})"
 
 
 def format_summary(summary: RunSummary) -> str:
-    fps = f"{summary.fps:.1f}" if summary.fps is not None else "계산 불가"
+    fps = f"{summary.fps:.1f}" if summary.fps is not None else "unavailable"
     lines = [
         f"run ID: {summary.run_id}",
         f"platform: {summary.platform}",
-        f"action mode: {summary.action_mode or '기록 없음'}",
+        f"action mode: {summary.action_mode or 'not recorded'}",
         f"run_end.status: {summary.status}",
-        f"frame 수: {summary.frame_count}",
+        f"frames: {summary.frame_count}",
         f"FPS: {fps}",
         "",
         "latency (ms)",
         _stats_line("inference", summary.inference),
-        _stats_line("control (전체 frame)", summary.control),
-        _stats_line("control (action frame)", summary.control_with_actions),
-        _stats_line("end-to-end (전체 frame)", summary.end_to_end),
-        _stats_line("end-to-end (action frame)", summary.end_to_end_with_actions),
+        _stats_line("control (all frames)", summary.control),
+        _stats_line("control (action frames)", summary.control_with_actions),
+        _stats_line("end-to-end (all frames)", summary.end_to_end),
+        _stats_line("end-to-end (action frames)", summary.end_to_end_with_actions),
         "",
-        f"상태 전이: {' -> '.join(summary.states) or '없음'}",
-        "action:",
+        f"state transitions: {' -> '.join(summary.states) or 'none'}",
+        "actions:",
     ]
     for name, succeeded, reason in summary.actions:
-        lines.append(f"  {name}: {'성공' if succeeded else f'실패 ({reason})'}")
+        lines.append(f"  {name}: {'success' if succeeded else f'failure ({reason})'}")
     if not summary.actions:
-        lines.append("  없음")
+        lines.append("  none")
     if summary.action_mode == "real":
-        lines.append("주의: --actions real의 미디어 성공은 물리 동작이 아닙니다.")
+        lines.append("Note: media success with --actions real does not indicate physical control.")
     return "\n".join(lines)
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("log", type=Path, help="JSONL 실행 로그 경로")
+    parser.add_argument("log", type=Path, help="Path to a JSONL run log")
     args = parser.parse_args(argv)
     try:
         with args.log.open(encoding="utf-8") as log:
             summary = summarize(json.loads(line) for line in log if line.strip())
     except (OSError, ValueError) as error:
-        print(f"요약 실패: {error}")
+        print(f"Summary failed: {error}")
         return 1
     print(format_summary(summary))
     return 0

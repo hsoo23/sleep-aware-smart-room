@@ -18,7 +18,8 @@
 - Result file location:
 - Anomalies and observations:
 
-# 검증 환경
+# Verification environment
 
-- 로컬 mock 검증:
-- 실제 장치 검증(미실시 시 `미실시`):
+- Local mock/stub verification:
+- Physical-device verification (write `Not performed` if none):
+- Raspberry Pi inference and resource measurements (write `Not performed` if none):

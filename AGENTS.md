@@ -2,8 +2,10 @@
 
 ## Language and GitHub communication
 
-- 모든 응답은 기본적으로 한국어로 작성한다.
-- GitHub PR 제목, PR 본문, 리뷰 코멘트, 이슈 코멘트, 커밋 설명, 작업 요약은 한국어로 작성한다.
-- 사용자가 명시적으로 영어를 요청한 경우에만 영어를 사용한다.
-- 코드, 식별자, API 이름, 로그, 에러 메시지는 원문을 유지하되 설명은 한국어로 한다.
-- 외부 템플릿이나 GitHub 기본 문구가 영어여도 최종 작성 내용은 자연스러운 한국어로 바꾼다.
+- Write user-facing responses in Korean by default, using polite language.
+- Write GitHub PR titles and descriptions, review comments, issue comments, commit
+  descriptions, and work summaries in Korean unless the user explicitly requests English.
+- Preserve the original form of code, identifiers, API names, logs, and error messages.
+- When preparing GitHub communication, translate external template text into natural Korean.
+- Repository documentation intended for external academic review may be written in English
+  when the user requests it; this does not change the default language for conversation.

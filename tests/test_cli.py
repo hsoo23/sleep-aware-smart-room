@@ -52,7 +52,7 @@ def test_cli_mock_run_is_deterministic_and_exercises_closed_loop(
 
 def test_cli_rejects_real_actions_for_mock_input(tmp_path, capsys):
     assert main(["--input", "mock", "--actions", "real", "--log-dir", str(tmp_path)]) == 1
-    assert "mock 입력" in capsys.readouterr().out
+    assert "Mock input" in capsys.readouterr().out
 
 
 def test_cli_camera_start_up_failure_is_recorded_in_run_end(tmp_path, capsys, monkeypatch):
@@ -85,7 +85,7 @@ def test_cli_reports_cleanup_failure_even_when_interrupted():
         has_pending_cleanup = True
 
     pipeline = Pipeline()
-    with pytest.raises(RuntimeError, match="종료 정리") as raised:
+    with pytest.raises(RuntimeError, match="Cleanup did not complete") as raised:
         try:
             raise KeyboardInterrupt
         finally:
@@ -166,7 +166,7 @@ def test_cli_keeps_cleanup_error_primary_when_executor_close_also_fails(
             return None
 
     def fail_cleanup(pipeline, policy):
-        raise RuntimeError("종료 정리 동작이 완료되지 않았습니다")
+        raise RuntimeError("Cleanup did not complete")
 
     monkeypatch.setattr("sleep_aware.cli.RaspberryPiHttpActionExecutor", FailingCloseExecutor)
     monkeypatch.setattr("sleep_aware.cli.OpenCVCameraSource", EmptyCamera)
@@ -179,7 +179,7 @@ def test_cli_keeps_cleanup_error_primary_when_executor_close_also_fails(
 
     output = capsys.readouterr().out
     assert exit_code == 1
-    assert "종료 정리 동작이 완료되지 않았습니다" in output
+    assert "Cleanup did not complete" in output
     assert "session close failed" in output
     (log_path,) = tmp_path.glob("*.jsonl")
     end = json.loads(log_path.read_text().splitlines()[-1])

@@ -162,7 +162,7 @@ def validate_record(record: Mapping[str, Any]) -> None:
         if unknown:
             problems.append(f"run_start: unsupported detector_config keys {unknown!r}")
         for key, value in config.items():
-            if not isinstance(value, (str, int, float, bool)) or isinstance(value, complex):
+            if not isinstance(value, str | int | float | bool) or isinstance(value, complex):
                 problems.append(f"run_start: detector_config[{key!r}] must be scalar")
             elif isinstance(value, str) and redact(value) != value:
                 problems.append(f"run_start: detector_config[{key!r}] contains sensitive data")

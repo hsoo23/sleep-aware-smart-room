@@ -24,9 +24,9 @@ MODEL_URL = (
 )
 MODEL_FILENAME = "face_landmarker.task"
 DOWNLOAD_HINT = (
-    "Face Landmarker 모델이 없습니다. "
-    "python -m sleep_aware.pipeline.face_landmarker --download 로 내려받거나 "
-    "FACE_LANDMARKER_MODEL 환경 변수로 경로를 지정하세요"
+    "Face Landmarker model not found. "
+    "Download it with python -m sleep_aware.pipeline.face_landmarker --download "
+    "or set its path with FACE_LANDMARKER_MODEL"
 )
 
 
@@ -72,7 +72,7 @@ class MediaPipeFaceLandmarkerProcessor:
         # so normalize once and use the same path for the check and the backend.
         path = Path(model_path).expanduser().resolve()
         if landmarker_factory is None and not path.is_file():
-            raise RuntimeError(f"{DOWNLOAD_HINT} (확인한 경로: {path})")
+            raise RuntimeError(f"{DOWNLOAD_HINT} (checked path: {path})")
 
         if cv2_module is None:
             try:
@@ -204,13 +204,13 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--download",
         action="store_true",
-        help="Face Landmarker 모델을 내려받는다",
+        help="Download the Face Landmarker model",
     )
     parser.add_argument("--model-path", default=settings.face_landmarker_model)
     args = parser.parse_args(argv)
 
     if not args.download:
-        parser.error("--download 를 지정하세요")
+        parser.error("Specify --download")
     print(download_model(args.model_path))
     return 0
 

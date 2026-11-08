@@ -41,7 +41,7 @@ class _QuietThreadingHTTPServer(ThreadingHTTPServer):
     daemon_threads = True
 
     def handle_error(self, request: Any, client_address: Any) -> None:
-        if isinstance(sys.exc_info()[1], (ConnectionResetError, BrokenPipeError)):
+        if isinstance(sys.exc_info()[1], ConnectionResetError | BrokenPipeError):
             return
         super().handle_error(request, client_address)
 
@@ -149,7 +149,7 @@ def main(argv: list[str] | None = None) -> int:
         action="append",
         default=[],
         choices=[item.value for item in Action],
-        help="지정한 action에 실패 상태 코드를 반환해 오류 경로를 재현",
+        help="Return a failure status for the specified action to test error handling",
     )
     parser.add_argument("--failure-status", type=int, default=503)
     args = parser.parse_args(argv)
@@ -159,12 +159,12 @@ def main(argv: list[str] | None = None) -> int:
         failing_actions=frozenset(Action(value) for value in args.fail_action),
         failure_status=args.failure_status,
     )
-    print(f"{server.base_url} (Ctrl+C로 종료)")
+    print(f"{server.base_url} (Ctrl+C to stop)")
     try:
         with server:
             threading.Event().wait()
     except KeyboardInterrupt:
-        print("중지했습니다.")
+        print("Stopped.")
     return 0
 
 

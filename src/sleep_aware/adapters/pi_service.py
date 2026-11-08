@@ -40,8 +40,8 @@ logger = logging.getLogger(__name__)
 MEDIA_ACTIONS = frozenset({Action.PAUSE_MEDIA, Action.PLAY_MEDIA})
 DEFAULT_ALERT_PATTERN: Sequence[float] = (0.25,) * 10
 PI5_HINT = (
-    "Raspberry Pi 5에서는 RPi.GPIO가 동작하지 않습니다. "
-    "pip uninstall RPi.GPIO 후 pip install rpi-lgpio로 교체하세요."
+    "RPi.GPIO does not work on Raspberry Pi 5. "
+    "Replace it with rpi-lgpio: pip uninstall RPi.GPIO && pip install rpi-lgpio."
 )
 
 
@@ -104,7 +104,7 @@ class PiActionService:
             raise RuntimeError("service is already running")
         initial = self._gpio.execute(Action.LIGHT_ON)
         if not initial.succeeded:
-            raise RuntimeError(f"초기 조명 설정에 실패했습니다: {initial.error_reason}")
+            raise RuntimeError(f"Could not set initial lamp state: {initial.error_reason}")
         self._serve_thread = threading.Thread(target=self._server.serve_forever, daemon=True)
         self._serve_thread.start()
         return self
@@ -213,7 +213,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--host",
         default=LOOPBACK_HOST,
-        help="bind 주소. 기본값은 loopback이며 SSH 터널로 접근합니다",
+        help="Bind address; defaults to loopback for access through an SSH tunnel",
     )
     parser.add_argument("--port", type=int, default=5050)
     args = parser.parse_args(argv)
@@ -227,8 +227,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         import RPi.GPIO as GPIO  # noqa: N814 - the conventional name of this module.
     except (ImportError, RuntimeError) as error:
-        print(f"실행 실패: RPi.GPIO를 불러오지 못했습니다: {error}")
-        print("Raspberry Pi에서 pip install -e '.[raspberrypi]'로 설치했는지 확인하세요.")
+        print(f"Run failed: could not import RPi.GPIO: {error}")
+        print("On Raspberry Pi, install with pip install -e '.[raspberrypi]'.")
         return 1
 
     service: PiActionService | None = None
@@ -241,12 +241,12 @@ def main(argv: list[str] | None = None) -> int:
             buzzer_pin=settings.buzzer_pin,
         )
         service.start()
-        print(f"{args.host}:{service.port} (Ctrl+C로 종료)")
+        print(f"{args.host}:{service.port} (Ctrl+C to stop)")
         threading.Event().wait()
     except KeyboardInterrupt:
-        print("중지했습니다.")
+        print("Stopped.")
     except (OSError, RuntimeError, ValueError) as error:
-        print(f"실행 실패: {error}")
+        print(f"Run failed: {error}")
         if "SOC peripheral" in str(error):
             print(PI5_HINT)
         if service is not None:
@@ -262,7 +262,7 @@ def _close_reporting(service: PiActionService) -> bool:
     try:
         service.close()
     except (OSError, RuntimeError, ValueError) as error:
-        print(f"GPIO 정리 실패: {error}. 릴레이와 부저 상태를 직접 확인하세요.")
+        print(f"GPIO cleanup failed: {error}. Check the relay and buzzer state.")
         return False
     return True
 

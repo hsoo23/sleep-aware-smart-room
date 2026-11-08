@@ -60,7 +60,7 @@ def test_action_failures_keep_their_reason(tmp_path):
 
     text = format_summary(summarize(_records(log)))
 
-    assert "buzzer_alert: 실패" in text
+    assert "buzzer_alert: failure" in text
 
 
 def test_invalid_log_fails_without_a_traceback(tmp_path, capsys):
@@ -68,10 +68,10 @@ def test_invalid_log_fails_without_a_traceback(tmp_path, capsys):
     broken.write_text('{"record_type": "frame"}\n', encoding="utf-8")
 
     assert main([str(broken)]) == 1
-    assert "요약 실패" in capsys.readouterr().out
+    assert "Summary failed" in capsys.readouterr().out
     assert main([str(tmp_path / "missing.jsonl")]) == 1
 
 
 def test_main_prints_the_summary(wake_log, capsys):
     assert main([str(wake_log)]) == 0
-    assert "control (action frame)" in capsys.readouterr().out
+    assert "control (action frames)" in capsys.readouterr().out

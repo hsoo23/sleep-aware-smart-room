@@ -1,116 +1,58 @@
-# Camera Smoke Test Results
+# Camera and Chrome Smoke-Test Results
 
-Camera smoke results are recorded separately from automated test results because
-they depend on host permissions and attached hardware.
+These are development-host observations, not automated CI results or Raspberry Pi edge measurements. Unless stated otherwise, all camera runs used `--actions mock`, so they did not actuate physical devices.
 
-## 2026-09-12 development workspace
+## 2026-09-12: camera access denied
 
 - Git commit before changes: `2debdf2`
 - Command: `PYTHONPATH=src python -m sleep_aware.capture.smoke --frames 3`
-- Requested camera index: `0`
-- Requested resolution: `640x480`
-- Result: not completed; the host denied camera capture permission before a
-  device or returned resolution could be identified
-- Adapter behavior: reported `CameraOpenError` as
-  `failed to open camera index 0` and exited with status `1`
-- Follow-up: grant camera permission to the terminal/runtime and repeat the
-  command on the target development host
+- Requested camera: index 0, 640×480
+- Result: the host denied capture permission before a usable device or returned resolution could be identified. The adapter reported `CameraOpenError` (`failed to open camera index 0`) and exited with code 1.
+- Interpretation: unavailable-camera error path only; no successful frame capture.
 
-This result verifies the unavailable-camera error path, not successful physical
-frame capture.
+## 2026-09-19: camera and Face Landmarker
 
-## 2026-09-19 development workspace
+The worktree was based on `36ed98b` and included the Tasks backend changes in the then-current PR.
 
-### 권한 허용 전 (첫 시도)
+### Before camera permission
 
-- Git commit: `36ed98b`
-- Command: `PYTHONPATH=src python -m sleep_aware.capture.smoke --frames 3`
-- Requested camera index: `0`
-- Requested resolution: `640x480`
-- Result: not completed; the camera opened but the first frame could not be read
-  (`failed to read frame 0 from camera index 0`), which is the expected behavior
-  when the host has not granted camera access to the running terminal
-- Difference from 2026-09-12: the open step now succeeds, so the failure moved
-  from `CameraOpenError` to the frame-read path
-- Follow-up: grant camera access to the terminal in macOS 설정 → 개인정보 보호 및
-  보안 → 카메라, then repeat the command and record the returned image shape
+The camera opened, but `PYTHONPATH=src python -m sleep_aware.capture.smoke --frames 3` failed to read frame 0. The error path moved from camera open to frame read. Access was then granted under macOS **System Settings → Privacy & Security → Camera**. This first attempt did not establish frame capture.
 
-이 결과도 실패 경로 확인이며 실제 frame 획득 검증이 아니다.
+### After camera permission
 
-### 권한 허용 후
+| Check | Command or configuration | Recorded result | Limit |
+|---|---|---|---|
+| Capture smoke | `PYTHONPATH=src python -m sleep_aware.capture.smoke --frames 3` | Passed; index 0, 3 frames, shape `(480, 640, 3)`, monotonic duration 0.090 s | Camera capture only |
+| Tasks backend CLI | `sleep-aware --input camera --actions mock --intention wake --no-display --max-frames 150` | `run_end.status=completed`; 150 frames in about 6.2 s (~24 FPS); inference latency median 2.4 ms, p95 3.7 ms | No person present; all states `NO_FACE`, no EAR |
+| Built-in MacBook camera CLI | `sleep-aware --input camera --actions mock --intention wake --no-display --max-frames 200 --camera-index 1` | `run_end.status=completed`; 200 frames, 30.0 FPS; state sequence `AWAKE → EYES_CLOSED → AWAKE → EYES_CLOSED → DROWSY → AWAKE` | Mock actions; no physical devices |
 
-- Git commit: `36ed98b` 기준, 이 PR의 Tasks backend 변경 포함
-- 카메라 권한을 허용한 뒤 재시도했습니다.
+Camera enumeration with `python -m sleep_aware.capture.smoke --list` found:
 
-### capture smoke
+| Index | Device | Shape | Mean brightness | Interpretation |
+|---|---|---|---:|---|
+| 0 | iPhone15,2 Continuity Camera | `(480, 640, 3)` | 0.1 | Black-frame warning |
+| 1 | MacBook Pro camera | `(480, 640, 3)` | 112.5 | Usable |
 
-- Command: `PYTHONPATH=src python -m sleep_aware.capture.smoke --frames 3`
-- Result: 통과. index 0, 3 frames, 반환 shape `(480, 640, 3)`, monotonic duration 0.090s
+macOS selected the face-down iPhone as index 0, explaining the all-`NO_FACE` 150-frame run. The later 200-frame run used index 1. Its state counts were AWAKE 26, EYES_CLOSED 148, and DROWSY 26. EAR was recorded on all 200 frames, range 0.015–0.314. The recorded inference latency was median 8.7 ms and p95 12.9 ms **on the development host**. These observations verify camera input and state transitions, not Raspberry Pi RQ4 performance or physical lamp/buzzer/media behavior.
 
-### CLI 카메라 실행 (Tasks backend)
+## 2026-09-19: macOS Chrome media control
 
-- Command: `sleep-aware --input camera --actions mock --intention wake --no-display --max-frames 150`
-- Result: `run_end.status=completed`, frame 150개, 약 24 FPS (6.2초)
-- inference latency: 중앙값 2.4ms, p95 3.7ms
-- 카메라 앞에 사람이 없어 상태는 전부 `NO_FACE`였고 EAR은 기록되지 않았습니다.
+The test used macOS, Google Chrome 153.0.8010.48, and one YouTube watch tab, with **View → Developer → Allow JavaScript from Apple Events** enabled. The code was `main` plus the AppleScript syntax fix in the then-current PR.
 
-이 150 frame 실행은 카메라 획득과 Tasks backend 실행 경로만 확인합니다. 사용자
-상태 전이는 이 실행에서 검증하지 않았습니다(아래 내장 카메라 실행 참조). latency 값은
-개발 호스트 측정치이므로 RQ3의 edge 근거로 사용하지 않습니다.
-
-### 카메라 index 확인
-
-`python -m sleep_aware.capture.smoke --list` 결과입니다.
-
-| index | 장치 | shape | 평균 밝기 | 비고 |
-|---|---|---|---|---|
-| 0 | iPhone15,2 (연속성 카메라) | (480, 640, 3) | 0.1 | 검은 화면 경고 |
-| 1 | MacBook Pro 카메라 | (480, 640, 3) | 112.5 | 정상 |
-
-macOS가 연속성 카메라를 index 0으로 잡았고, 엎어 둔 iPhone에서 검은 frame이
-들어왔습니다. 위의 150 frame 실행이 전부 `NO_FACE`였던 원인입니다. 코드 오류가 아니라
-입력 장치 문제이며, 이후 실행은 내장 카메라(index 1)를 사용했습니다.
-
-### CLI 카메라 실행 (내장 카메라, 사용자 있음)
-
-- Command: `sleep-aware --input camera --actions mock --intention wake --no-display --max-frames 200 --camera-index 1`
-- Result: `run_end.status=completed`, frame 200개, 30.0 FPS
-- 상태 전이: `AWAKE → EYES_CLOSED → AWAKE → EYES_CLOSED → DROWSY → AWAKE`
-- 상태 분포: AWAKE 26, EYES_CLOSED 148, DROWSY 26
-- EAR: 200 frame 모두 기록, 범위 0.015 ~ 0.314
-- inference latency: 중앙값 8.7ms, p95 12.9ms (개발 호스트 측정치이며 RQ3 edge 근거가 아니다)
-
-실제 카메라 입력에서 `AWAKE → EYES CLOSED → DROWSY` 전이와 EAR 기록을 확인했습니다.
-실제 장치(조명·부저·미디어) 동작은 이 실행에 포함되지 않습니다(`--actions mock`).
-
-### 2026-09-19 검증 요약
-
-| 항목 | 상태 | 근거 |
+| Step | Script return | Observed video |
 |---|---|---|
-| 카메라 권한과 frame 획득 | 확인 | capture smoke 통과 |
-| Tasks backend 실행 경로 | 확인 | 150 frame 실행, `run_end=completed` |
-| camera index 구분(연속성 카메라 포함) | 확인 | `--list` 결과 |
-| 사용자 상태 전이(`AWAKE → EYES CLOSED → DROWSY`) | 확인 | 내장 카메라 200 frame 실행 |
-| 실제 장치(조명·부저·미디어) 동작 | 미실시 | 모든 실행이 `--actions mock` |
-| Raspberry Pi 성능(RQ3) | 미실시 | 개발 호스트 측정치만 존재 |
+| Initial | — | playing |
+| `play_media` | `play` | playing |
+| `pause_media` | `pause` | paused |
 
-## 2026-09-19 macOS Chrome 미디어 제어
+All three tested calls (`pause_media`, `play_media`, `pause_media`) returned `succeeded=True`, with durations of 131–166 ms. The prior syntax `execute javascript ... in t` had produced `-1723`, which could be mistaken for a permission error; the corrected syntax passes the tab directly: `execute t javascript "..."`. This check did not include Pi light, buzzer, or session effects.
 
-- Git commit: `main` + 이 PR의 구문 수정
-- 환경: macOS, Google Chrome 153.0.8010.48, YouTube watch 페이지 1개
-- 사전 설정: 보기 → 개발자용 → Apple Events에서 JavaScript 허용 켬
+## Verification summary
 
-| 단계 | 반환값 | 영상 상태 |
-|---|---|---|
-| 초기 | - | `playing` |
-| `play_media` | `play` | `playing` |
-| `pause_media` | `pause` | `paused` |
-
-실행기 결과: `pause_media`, `play_media`, `pause_media` 모두 `succeeded=True`,
-소요 시간 131~166ms.
-
-수정 전에는 AppleScript 구문 오류(`execute javascript ... in t`)로 오류 `-1723`이
-발생했고, 오류 번호가 권한 거부와 같아 Chrome 설정 문제로 오인했습니다. 올바른 구문은
-탭을 직접 파라미터로 주는 `execute t javascript "..."`입니다.
-
-조명·부저·세션 동작은 이 확인에 포함되지 않습니다(Raspberry Pi 필요).
+| Scope | Status |
+|---|---|
+| Development-host camera permission and frame capture | Observed |
+| MediaPipe Tasks backend path and user state transitions | Observed on development host |
+| macOS Chrome media action | Observed separately |
+| Combined MacBook-to-Pi physical closed loop | Not recorded here |
+| Raspberry Pi 4 inference and resource use | Not recorded here |
