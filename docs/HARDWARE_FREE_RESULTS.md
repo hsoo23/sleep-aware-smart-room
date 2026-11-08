@@ -1,6 +1,6 @@
 # Hardware-Free Verification Results
 
-This record covers checks performed without a physical camera, Raspberry Pi, relay, or buzzer. Physical observations belong in [DEMO_VALIDATION.md](DEMO_VALIDATION.md) and development-host camera observations in [CAMERA_SMOKE_RESULTS.md](CAMERA_SMOKE_RESULTS.md). These results do not establish detection accuracy, Raspberry Pi edge performance, or physical-device operation.
+This record covers checks performed without a physical camera, Raspberry Pi, relay, or buzzer. Physical observations are summarized in [PHYSICAL_DEMO_2026-11-05.md](PHYSICAL_DEMO_2026-11-05.md), with a reusable form in [DEMO_VALIDATION.md](DEMO_VALIDATION.md); development-host camera observations are in [CAMERA_SMOKE_RESULTS.md](CAMERA_SMOKE_RESULTS.md). The results below do not establish detection accuracy, Raspberry Pi edge performance, or physical-device operation.
 
 ## Deterministic mock reproducibility
 

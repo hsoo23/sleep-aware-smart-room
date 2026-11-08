@@ -1,14 +1,16 @@
 # Phase 2 Demonstration and Verification Record
 
-This is a blank record for future demonstrations. Check a box only after observing that item in the named environment. Enter `Not performed` instead of leaving an unperformed measurement ambiguous. Keep software-only, host-only, and physical-device results separate.
+Use this form for future demonstrations. Check a box only after observing that item in the named environment. Enter `Not performed` instead of leaving an unperformed measurement ambiguous. Keep software-only, host-only, and physical-device results separate.
 
-## Team-reported physical run
+## Recorded physical demonstration
 
-On 2026-11-09, a team member reported that the functions worked after connecting
-the Raspberry Pi. The run date, exact command, device-by-device observations,
-Git commit, JSONL log, and recovery sequence were not supplied with that report.
-The checkboxes below therefore remain open until those details are recorded.
-This report does not show that face inference ran on the Pi itself.
+The [2026-11-05 demonstration record](PHYSICAL_DEMO_2026-11-05.md) now identifies
+the run date, Git commit, 12 validated JSONL files, representative Sleep/Wake
+action and recovery sequences, and the team's physical observations. It also
+distinguishes the subsequently reported email receipt from the core JSONL.
+The original shell command and camera index are not recorded in JSONL, and
+face inference ran on the Mac rather than on the Pi. The unchecked items below
+remain a template for future runs and additional measurements.
 
 ## Pre-submission checklist
 
@@ -66,8 +68,8 @@ The JSONL provides frame-based latency but not CPU or memory. Measure CPU and me
 | RQ1 | Does Adaptive EAR outperform fixed EAR and reduce false detections? | B0 fixed-EAR trace only; no comparative performance claim | B0/B1 comparison with ground truth and false-positive/negative counts |
 | RQ2 | Does detection generalize to unseen users? | Not assessed in Phase 2 | Participant-disjoint or LOSO evaluation |
 | RQ3 | Is detection robust to lighting, angle, and distance changes? | Not assessed in Phase 2 | Controlled and realistic condition tests |
-| RQ4 | Can Pi 4 inference and control run in real time with low latency? | Pi action service exists; inference and latency must be measured on Pi | Repeated Pi FPS, inference, and end-to-end measurements |
+| RQ4 | Can Pi 4 inference and control run in real time with low latency? | Pi 4 action service was used in the November 5 demonstration; inference ran on the Mac | Repeated Pi FPS, inference, and end-to-end measurements |
 | RQ5 | What are the accuracy/resource trade-offs? | No cross-detector comparison yet | B0–B3 accuracy, FPS, CPU, memory, and computational cost |
-| RQ6 | Are intention-aware actions more appropriate than a uniform response? | Mock Sleep/Wake sequences support implementation behavior; physical actions and recovery need observation | Quantified intention-action consistency, success, and recovery |
+| RQ6 | Are intention-aware actions more appropriate than a uniform response? | November 5 Sleep/Wake camera/host logs show different action and recovery sequences, with physical effects reported by the team | Quantified comparison with a uniform-response baseline, control success, and recovery |
 
 Three identical mock traces show deterministic execution, not RQ1 accuracy improvement. Development-host camera and Chrome observations are documented in [CAMERA_SMOKE_RESULTS.md](CAMERA_SMOKE_RESULTS.md); mock/stub results in [HARDWARE_FREE_RESULTS.md](HARDWARE_FREE_RESULTS.md). Neither is Pi edge evidence. Link every eventual paper table, figure, and video to at least one approved RQ.

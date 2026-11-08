@@ -2,6 +2,9 @@
 
 This guide keeps local mock/stub checks separate from physical-device observations. Do not commit personal IP addresses, credentials, HTTP response bodies, participant data, or machine-specific paths.
 
+A dated summary of the team-reported physical demonstration and its validated
+JSONL runs is in [PHYSICAL_DEMO_2026-11-05.md](PHYSICAL_DEMO_2026-11-05.md).
+
 ## HTTP contract
 
 The Pi service accepts state-changing requests by `POST` only. By default it binds to loopback; access it from the host through an SSH tunnel.

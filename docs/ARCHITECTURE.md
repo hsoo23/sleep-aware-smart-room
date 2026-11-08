@@ -11,7 +11,7 @@ state detection -> intention-dependent actuation -> re-observation -> restoratio
 | Stage | Status | Scope |
 |---|---|---|
 | Original class project | Preserved reference | MacBook, Chrome, Raspberry Pi, fixed EAR, and the original local dashboard |
-| Phase 2 / B0 | Software implementation available; physical verification pending | Modular CLI, fixed EAR, closed-loop policy, action adapters, and JSONL logging |
+| Phase 2 / B0 | Software implemented; a team-reported physical demonstration is documented | Modular CLI, fixed EAR, closed-loop policy, action adapters, and JSONL logging; see the [November 5 record](PHYSICAL_DEMO_2026-11-05.md) |
 | Phase 3 / B1–B3 | Planned | Integrated Adaptive EAR, PERCLOS, and head-pose ablations |
 
 Adaptive EAR, PERCLOS, head pose, and environmental context in the first diagram are **targets**, not validated baseline features.

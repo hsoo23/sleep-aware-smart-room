@@ -32,8 +32,9 @@ A green CI run only shows that the hardware-independent decision logic, data
 contracts, and fake-adapter pipeline behave as specified. It does **not** verify
 the camera, MediaPipe Face Mesh accuracy, Raspberry Pi GPIO, relay, buzzer,
 Chrome/YouTube media control, network latency, or email reports. Hardware
-behavior must still be demonstrated with [BASELINE_RUNBOOK.md](BASELINE_RUNBOOK.md)
-and recorded with the Git commit used.
+behavior must be demonstrated separately using [BASELINE_RUNBOOK.md](BASELINE_RUNBOOK.md)
+and recorded with the Git commit used. The team-reported November 5 physical
+demonstration is summarized in [PHYSICAL_DEMO_2026-11-05.md](PHYSICAL_DEMO_2026-11-05.md).
 
 ## Test naming
 

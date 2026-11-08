@@ -9,14 +9,14 @@ This repository extends the original *AI-Based Sleep-Aware Media and Smart Room 
 | Phase 1 literature review | Approved | Research direction and RQ1–RQ6 approved as proposed contributions |
 | Phase 2 software baseline | Implemented | Fixed-EAR CLI, closed-loop policy, mock/stub adapters, Pi action service, JSONL logging, and CI |
 | Hardware-free tests | Available | Unit, mock pipeline, and HTTP stub tests; these do not validate physical devices |
-| Development-host camera and Chrome | Limited checks recorded | See [camera results](docs/CAMERA_SMOKE_RESULTS.md); these are not Raspberry Pi results |
-| Raspberry Pi relay, lamp, and buzzer | Reported operational by the team | The run command, device observations, and log still need to be recorded in the [physical-device checklist](docs/RASPBERRY_PI_SMOKE_TEST.md) |
-| Full Sleep/Wake hardware loop | Team reports working functions; evidence pending | Record the observed actions, recovery, and device restoration for each mode |
+| Development-host camera and Chrome | Demonstrated on the Mac | See [camera results](docs/CAMERA_SMOKE_RESULTS.md) and the [2026-11-05 physical demonstration](docs/PHYSICAL_DEMO_2026-11-05.md); these are not Raspberry Pi inference results |
+| Raspberry Pi relay, lamp, and buzzer | Physical operation reported by the team | The Pi action service and successful action results are documented in the [2026-11-05 demonstration record](docs/PHYSICAL_DEMO_2026-11-05.md) |
+| Full Sleep/Wake hardware loop | Representative runs documented | Two complete camera/host runs show different Sleep/Wake actions and recovery; physical effects are team observations |
 | Raspberry Pi edge inference | Verification pending | Install camera/MediaPipe on Pi 4 and measure FPS, inference and end-to-end latency, CPU, and memory |
 | Phase 3 detector | Planned | Adaptive EAR and PERCLOS modules exist but are not integrated or shown to improve the baseline; head pose remains planned |
 | Phase 4 dataset and journal claims | Planned | Participant-disjoint protocol, ground truth, comparisons, and ablations remain |
 
-The original code is preserved in [legacy/](legacy/README.md). Its web dashboard is a local static page in `legacy/index.html`; it calls the original `/set_config` and `/start_detection` APIs. The current CLI and Pi action service use different interfaces, so displaying the dashboard does **not** demonstrate the current baseline. Legacy runtime files remain unchanged for provenance.
+The original code is preserved in [legacy/](legacy/README.md). Its web dashboard is a local static page in `legacy/index.html`; it calls the original `/set_config` and `/start_detection` APIs. The current CLI and Pi action service use different interfaces, so displaying that legacy page alone does **not** demonstrate the current baseline. The November 2026 web demonstration used a separate launcher and web page recorded in the evidence archive, neither of which is in this repository's `main` branch. Legacy runtime files remain unchanged for provenance.
 
 ## Research questions
 
@@ -92,10 +92,12 @@ Select the verified camera index. Quit a displayed run with `q` or Escape. Use `
 
 A passing mock or HTTP stub run must not be reported as a hardware demonstration. Record physical results in the [demo validation form](docs/DEMO_VALIDATION.md).
 
-On 2026-11-09, a team member reported that the functions worked after connecting
-the Raspberry Pi. This is a user report, not an independently reviewed run
-record: the command, device-by-device observations, and JSONL log have not yet
-been supplied. It does not establish Pi-based AI inference or edge performance.
+The [2026-11-05 demonstration record](docs/PHYSICAL_DEMO_2026-11-05.md) summarizes
+12 supplied JSONL logs (nine normally completed, three interrupted), representative
+Sleep/Wake action sequences, and the team's physical observations. The user also
+reported receiving the email report; email delivery is outside the core JSONL
+contract and was not independently recorded there. Inference ran on the Mac, while
+the Pi ran the action service. Pi-based AI inference and edge performance remain unverified.
 
 ## Closed-loop design and ablation plan
 
