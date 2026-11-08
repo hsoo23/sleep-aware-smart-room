@@ -1,6 +1,7 @@
 # Structured Run Log Schema
 
-Schema version: **1.0** (`sleep_aware.eventlog.SCHEMA_VERSION`)
+Schema version: **1.1** (`sleep_aware.eventlog.SCHEMA_VERSION`). The validator
+continues to read historical **1.0** logs, including the 2026-11-05 B0 evidence.
 
 Baseline runs are logged as JSON Lines by `sleep_aware.eventlog.JsonlEventLogger`,
 which implements the pipeline `EventLogger` contract. The machine-readable field
@@ -41,7 +42,7 @@ Every line contains these common fields:
 
 | Field | Type | Description |
 |---|---|---|
-| `schema_version` | string | `"1.0"` |
+| `schema_version` | string | `"1.1"` for new runs; historical `"1.0"` is readable |
 | `record_type` | string | `run_start`, `frame`, or `run_end` |
 | `run_id` | string | Identifier shared by all lines of the run |
 | `wall_time_utc` | string | Wall-clock time when the line was written |
@@ -54,10 +55,10 @@ Every line contains these common fields:
 | `software_version` | string | `sleep_aware.__version__` |
 | `git_commit` | string \| null | `git rev-parse HEAD`; null outside a Git checkout |
 | `git_dirty` | bool \| null | Whether tracked files had uncommitted changes |
-| `detector_name` | string | Ablation stage, e.g. `B0-fixed-ear` |
+| `detector_name` | string | Ablation stage, e.g. `B0-fixed-ear` or `B1-adaptive-ear` |
 | `detector_version` | string | Detector implementation version |
 | `config_version` | string | Identifier of the experiment configuration |
-| `detector_config` | object | Experimental parameters only (thresholds, durations) |
+| `detector_config` | object | Experimental parameters only. B0 records `ear_threshold`; B1 records `adaptive_multiplier`, `calibration_samples`, and `calibration_protocol`, plus durations and source |
 | `python_version` | string | e.g. `3.11.9` |
 | `platform` | string | OS and CPU architecture, e.g. `Linux-aarch64` |
 
@@ -69,7 +70,7 @@ Every line contains these common fields:
 | `monotonic_timestamp_s` | number | Monotonic capture time of the frame |
 | `intention` | string | `sleep` or `wake` |
 | `ear` | number \| null | Mean EAR of both eyes; null when no face is found |
-| `ear_threshold` | number \| null | Threshold the detector applied to this frame |
+| `ear_threshold` | number \| null | Threshold applied to this frame; null during B1 guided calibration or before a threshold is available |
 | `previous_state` | string \| null | State of the previous frame; null for the first frame |
 | `state` | string | `NO_FACE`, `AWAKE`, `EYES_CLOSED`, or `DROWSY` |
 | `state_changed` | bool | `previous_state != state`; true for the first frame |
@@ -77,6 +78,12 @@ Every line contains these common fields:
 | `inference_latency_ms` | number | Landmark extraction + EAR + detector update |
 | `control_latency_ms` | number | Policy decision + execution of all actions |
 | `end_to_end_latency_ms` | number | Frame capture to the last action result |
+
+B1 calibration frames are marked by `ear_threshold=null`. The detector emits a
+policy-safe `AWAKE` placeholder for visible-face calibration frames and no
+actions; those frames are **not scored predictions**. Missing-face calibration
+frames remain `NO_FACE`. The first subsequent visible frame activates the frozen
+personal threshold. See [PHASE3_PREPARATION.md](PHASE3_PREPARATION.md).
 
 Each `actions` item:
 

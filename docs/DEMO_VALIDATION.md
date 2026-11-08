@@ -65,11 +65,11 @@ The JSONL provides frame-based latency but not CPU or memory. Measure CPU and me
 
 | RQ | Approved question | Phase 2 evidence available or needed | Later evidence |
 |---|---|---|---|
-| RQ1 | Does Adaptive EAR outperform fixed EAR and reduce false detections? | B0 fixed-EAR trace only; no comparative performance claim | B0/B1 comparison with ground truth and false-positive/negative counts |
+| RQ1 | Does Adaptive EAR outperform fixed EAR and reduce false detections? | B0 and B1 software traces are available, but no labeled comparison or performance claim | B0/B1 comparison on identical held-out data with false-positive/negative counts |
 | RQ2 | Does detection generalize to unseen users? | Not assessed in Phase 2 | Participant-disjoint or LOSO evaluation |
 | RQ3 | Is detection robust to lighting, angle, and distance changes? | Not assessed in Phase 2 | Controlled and realistic condition tests |
 | RQ4 | Can Pi 4 inference and control run in real time with low latency? | Pi 4 action service was used in the November 5 demonstration; inference ran on the Mac | Repeated Pi FPS, inference, and end-to-end measurements |
 | RQ5 | What are the accuracy/resource trade-offs? | No cross-detector comparison yet | B0–B3 accuracy, FPS, CPU, memory, and computational cost |
 | RQ6 | Are intention-aware actions more appropriate than a uniform response? | November 5 Sleep/Wake camera/host logs show different action and recovery sequences, with physical effects reported by the team | Quantified comparison with a uniform-response baseline, control success, and recovery |
 
-Three identical mock traces show deterministic execution, not RQ1 accuracy improvement. Development-host camera and Chrome observations are documented in [CAMERA_SMOKE_RESULTS.md](CAMERA_SMOKE_RESULTS.md); mock/stub results in [HARDWARE_FREE_RESULTS.md](HARDWARE_FREE_RESULTS.md). Neither is Pi edge evidence. Link every eventual paper table, figure, and video to at least one approved RQ.
+Deterministic mock traces show software execution, not RQ1 accuracy improvement. The [Phase 3 preparation](PHASE3_PREPARATION.md) explains B1 calibration and the planned comparison. Development-host camera and Chrome observations are documented in [CAMERA_SMOKE_RESULTS.md](CAMERA_SMOKE_RESULTS.md); prior mock/stub results in [HARDWARE_FREE_RESULTS.md](HARDWARE_FREE_RESULTS.md). Neither is Pi edge evidence. Link every eventual paper table, figure, and video to at least one approved RQ.

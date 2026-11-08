@@ -1,4 +1,4 @@
-"""Minimal synchronous orchestration for the fixed-EAR baseline."""
+"""Minimal synchronous orchestration for the B0 and B1 EAR detectors."""
 
 from __future__ import annotations
 

@@ -13,7 +13,7 @@ This repository extends the original *AI-Based Sleep-Aware Media and Smart Room 
 | Raspberry Pi relay, lamp, and buzzer | Physical operation reported by the team | The Pi action service and successful action results are documented in the [2026-11-05 demonstration record](docs/PHYSICAL_DEMO_2026-11-05.md) |
 | Full Sleep/Wake hardware loop | Representative runs documented | Two complete camera/host runs show different Sleep/Wake actions and recovery; physical effects are team observations |
 | Raspberry Pi edge inference | Verification pending | Install camera/MediaPipe on Pi 4 and measure FPS, inference and end-to-end latency, CPU, and memory |
-| Phase 3 detector | Planned | Adaptive EAR and PERCLOS modules exist but are not integrated or shown to improve the baseline; head pose remains planned |
+| Phase 3 detector | B1 software path integrated; B2–B3 planned | Guided Adaptive EAR runs through the CLI and mock pipeline; no real-camera accuracy comparison yet. PERCLOS fusion and head pose remain planned |
 | Phase 4 dataset and journal claims | Planned | Participant-disjoint protocol, ground truth, comparisons, and ablations remain |
 
 The original code is preserved in [legacy/](legacy/README.md). Its web dashboard is a local static page in `legacy/index.html`; it calls the original `/set_config` and `/start_detection` APIs. The current CLI and Pi action service use different interfaces, so displaying that legacy page alone does **not** demonstrate the current baseline. The November 2026 web demonstration used a separate launcher and web page recorded in the evidence archive, neither of which is in this repository's `main` branch. Legacy runtime files remain unchanged for provenance.
@@ -35,7 +35,7 @@ Every major experiment, table, and figure should address at least one RQ. See th
 
 - `src/sleep_aware/capture/`: OpenCV camera and deterministic frame sources
 - `src/sleep_aware/pipeline/`: landmark adapters, contracts, and baseline orchestration
-- `src/sleep_aware/detection/`: EAR, temporal state, and preliminary adaptive/PERCLOS modules
+- `src/sleep_aware/detection/`: fixed EAR, guided adaptive EAR, temporal state, and preliminary PERCLOS module
 - `src/sleep_aware/control/`: intention-aware closed-loop policy
 - `src/sleep_aware/adapters/`: mock, Raspberry Pi HTTP, GPIO service, and host media control
 - `src/sleep_aware/eventlog/`: structured JSONL events and run summary
@@ -75,6 +75,18 @@ python -m sleep_aware.capture.smoke --list
 sleep-aware --input camera --actions mock --intention wake --no-display --max-frames 150
 ```
 
+The B1 software path can also be checked without a kit:
+
+```bash
+sleep-aware --input mock --actions mock --detector b1 --intention wake
+```
+
+For a real-camera B1 pilot, use `--detector b1` and keep eyes normally open
+during its first 90 valid face observations. The threshold is the median of
+those observations multiplied by 0.75; calibration frames have a null threshold
+and are excluded from accuracy scoring. See [Phase 3 preparation](docs/PHASE3_PREPARATION.md)
+for configuration, limitations, and planned B0–B3 comparisons.
+
 For the physical setup, run the Pi service and establish the SSH tunnel in the [Pi guide](docs/RASPBERRY_PI_SMOKE_TEST.md). On the macOS host, `--actions host` controls YouTube in Chrome and sends lamp/buzzer actions to the Pi:
 
 ```bash
@@ -105,7 +117,7 @@ the Pi ran the action service. Pi-based AI inference and edge performance remain
 state detection -> intention-dependent actuation -> re-observation -> device restoration or policy transition
 ```
 
-The [architecture](docs/ARCHITECTURE.md) distinguishes the current B0 implementation from the planned B1–B3 design. The [policy specification](docs/CLOSED_LOOP_POLICY.md) details state transitions and retries.
+The [architecture](docs/ARCHITECTURE.md) distinguishes the implemented B0/B1 software paths from the planned B2–B3 design. The [policy specification](docs/CLOSED_LOOP_POLICY.md) details state transitions and retries.
 
 | Stage | Detector |
 |---|---|

@@ -14,7 +14,7 @@ from pathlib import Path
 
 from sleep_aware.config import settings
 from sleep_aware.control import Action, ClosedLoopPolicy, Intention
-from sleep_aware.detection import TemporalDrowsinessDetector
+from sleep_aware.detection import AdaptiveEarDetector, TemporalDrowsinessDetector
 from sleep_aware.pipeline import ActionResult, BaselinePipeline, EyeLandmarks, Frame, Point
 
 from .jsonl import JsonlEventLogger
@@ -62,16 +62,18 @@ def _eye(vertical: float) -> tuple[Point, Point, Point, Point, Point, Point]:
     )
 
 
-def _observations() -> Iterator[float | None]:
+def _observations(calibration_frames: int = 0) -> Iterator[float | None]:
+    for _ in range(calibration_frames):
+        yield OPEN_EAR_VERTICAL
     for seconds, vertical in SCENARIO:
         for _ in range(round(seconds * FPS)):
             yield vertical
 
 
 class SyntheticFrameSource:
-    def __init__(self, clock: SimulatedClock) -> None:
+    def __init__(self, clock: SimulatedClock, calibration_frames: int = 0) -> None:
         self._clock = clock
-        self._observations = _observations()
+        self._observations = _observations(calibration_frames)
         self._sequence = 0
         self._next_capture_at = clock()
 
@@ -116,23 +118,42 @@ def run_mock(
     intention: Intention = Intention.WAKE,
     *,
     failing_action: Action | None = Action.LIGHT_ON,
+    detector_stage: str = "b0",
+    calibration_samples: int = 90,
+    adaptive_multiplier: float = 0.75,
 ) -> Path:
     """Run the synthetic scenario and return the path of the written log."""
     clock = SimulatedClock()
-    detector = TemporalDrowsinessDetector(
-        ear_threshold=EAR_THRESHOLD,
-        drowsy_seconds=DROWSY_SECONDS,
-        recovery_seconds=RECOVERY_SECONDS,
-    )
+    if detector_stage == "b1":
+        detector = AdaptiveEarDetector(
+            multiplier=adaptive_multiplier,
+            minimum_samples=calibration_samples,
+            drowsy_seconds=DROWSY_SECONDS,
+            recovery_seconds=RECOVERY_SECONDS,
+        )
+        detector_config = {
+            "adaptive_multiplier": detector.multiplier,
+            "calibration_samples": detector.minimum_samples,
+            "calibration_protocol": "synthetic-open-eyes",
+        }
+    elif detector_stage == "b0":
+        detector = TemporalDrowsinessDetector(
+            ear_threshold=EAR_THRESHOLD,
+            drowsy_seconds=DROWSY_SECONDS,
+            recovery_seconds=RECOVERY_SECONDS,
+        )
+        detector_config = {"ear_threshold": detector.ear_threshold}
+    else:
+        raise ValueError(f"unsupported detector stage: {detector_stage}")
     commit, dirty = git_revision(Path(__file__).resolve().parent)
     metadata = RunMetadata(
         run_id=new_run_id(),
         intention=intention,
-        detector_name="B0-fixed-ear",
+        detector_name="B1-adaptive-ear" if detector_stage == "b1" else "B0-fixed-ear",
         detector_version="0.1.0",
-        config_version="mock-fixed",
+        config_version="mock-adaptive-v1" if detector_stage == "b1" else "mock-fixed",
         detector_config={
-            "ear_threshold": detector.ear_threshold,
+            **detector_config,
             "drowsy_seconds": detector.drowsy_seconds,
             "recovery_seconds": detector.recovery_seconds,
             "source": "mock",
@@ -143,7 +164,10 @@ def run_mock(
     with JsonlEventLogger(log_dir, metadata) as logger:
         policy = ClosedLoopPolicy()
         pipeline = BaselinePipeline(
-            frame_source=SyntheticFrameSource(clock),
+            frame_source=SyntheticFrameSource(
+                clock,
+                calibration_frames=calibration_samples if detector_stage == "b1" else 0,
+            ),
             landmark_processor=SyntheticLandmarkProcessor(clock),
             detector=detector,
             policy=policy,
@@ -157,6 +181,8 @@ def run_mock(
                 pass
         finally:
             pipeline.close()
+        if isinstance(detector, AdaptiveEarDetector) and not detector.ready:
+            raise RuntimeError("synthetic adaptive EAR calibration did not finish")
         if policy.has_pending_cleanup:
             # Raising inside the logger context records run_end as failed.
             raise RuntimeError("mock cleanup actions did not complete")
@@ -169,8 +195,19 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--intention", choices=[item.value for item in Intention], default=Intention.WAKE.value
     )
+    parser.add_argument("--detector", choices=("b0", "b1"), default="b0")
+    parser.add_argument("--calibration-samples", type=int, default=90)
+    parser.add_argument("--adaptive-multiplier", type=float, default=0.75)
     args = parser.parse_args(argv)
-    print(run_mock(args.log_dir, Intention(args.intention)))
+    print(
+        run_mock(
+            args.log_dir,
+            Intention(args.intention),
+            detector_stage=args.detector,
+            calibration_samples=args.calibration_samples,
+            adaptive_multiplier=args.adaptive_multiplier,
+        )
+    )
 
 
 if __name__ == "__main__":

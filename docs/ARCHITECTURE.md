@@ -1,6 +1,6 @@
 # System Architecture
 
-This document separates the implemented Phase 2 fixed-EAR baseline from the planned Phase 3 detector. The system follows:
+This document separates the implemented B0 and initial B1 paths from the planned B2/B3 detector stages. The system follows:
 
 ```text
 state detection -> intention-dependent actuation -> re-observation -> restoration or policy transition
@@ -12,9 +12,10 @@ state detection -> intention-dependent actuation -> re-observation -> restoratio
 |---|---|---|
 | Original class project | Preserved reference | MacBook, Chrome, Raspberry Pi, fixed EAR, and the original local dashboard |
 | Phase 2 / B0 | Software implemented; a team-reported physical demonstration is documented | Modular CLI, fixed EAR, closed-loop policy, action adapters, and JSONL logging; see the [November 5 record](PHYSICAL_DEMO_2026-11-05.md) |
-| Phase 3 / B1–B3 | Planned | Integrated Adaptive EAR, PERCLOS, and head-pose ablations |
+| Phase 3 / B1 | Software path integrated; real-camera comparison pending | Guided personal EAR calibration, B0/B1 CLI selection, and hardware-free checks |
+| Phase 3 / B2–B3 | Planned | PERCLOS and head-pose fusion with controlled ablations |
 
-Adaptive EAR, PERCLOS, head pose, and environmental context in the first diagram are **targets**, not validated baseline features.
+The combined Adaptive EAR, PERCLOS, head-pose, and environmental-context design in the first diagram is a **target**, not a validated end-to-end feature set. B1 alone is available as an initial software path.
 
 ## Planned detector and system
 
@@ -39,7 +40,7 @@ flowchart LR
     K --> F
 ```
 
-## Current Phase 2 execution path
+## Current B0/B1 execution path
 
 ```mermaid
 flowchart LR
@@ -52,8 +53,12 @@ flowchart LR
     end
     subgraph loop[BaselinePipeline.run, once per frame]
         READ[FrameSource.read] --> LMK[Synthetic or MediaPipe landmarks]
-        LMK --> EAR[Fixed EAR]
-        EAR --> TD[Temporal detector]
+        LMK --> EAR[EAR calculation]
+        EAR --> SEL{Detector stage}
+        SEL -->|B0| TD[Fixed threshold + temporal detector]
+        SEL -->|B1| CAL[Guided open-eye calibration]
+        CAL --> PT[Personal threshold + temporal detector]
+        PT --> CP
         TD --> CP[Sleep/Wake policy]
         CP --> EX[ActionExecutor.execute]
         EX --> ACK[Policy acknowledgement and retry scheduling]
@@ -67,13 +72,13 @@ flowchart LR
     HOST -.-> EX
 ```
 
-The CLI creates the selected input and action adapters once. Re-observation reads the next frame from the same `FrameSource`. At end of input or user exit, `BaselinePipeline.close()` attempts owned-resource cleanup. `--input mock --actions mock` is a repeatable software check. `--input camera --actions real` sends every action to Pi HTTP; the Pi media endpoints only acknowledge requests. `--actions host` controls media on the macOS Chrome host, light and buzzer over Pi HTTP, and session state locally.
+The CLI creates the selected input, detector, and action adapters once. Re-observation reads the next frame from the same `FrameSource`. B0 is the default; `--detector b1` adds a guided calibration phase before personal-threshold classification. Calibration frames do not produce actions. At end of input or user exit, `BaselinePipeline.close()` attempts owned-resource cleanup. `--input mock --actions mock` is a repeatable software check. `--input camera --actions real` sends every action to Pi HTTP; the Pi media endpoints only acknowledge requests. `--actions host` controls media on the macOS Chrome host, light and buzzer over Pi HTTP, and session state locally.
 
 ## Module boundaries and dependencies
 
 - `capture`: OpenCV camera source and deterministic fake frames; the camera adapter owns `VideoCapture` cleanup.
 - `pipeline`: `FrameSource`, `LandmarkProcessor`, `DrowsinessDetector`, `ActionExecutor`, and `EventLogger` contracts; `BaselinePipeline` orchestrates them synchronously.
-- `detection`: EAR geometry and time-based states. Adaptive calibration and PERCLOS modules are preliminary and are not used by the B0 CLI.
+- `detection`: EAR geometry, time-based states, and guided B1 personal calibration. PERCLOS fusion is not yet used by the CLI.
 - `control`: intention-specific transitions, recovery, and action retries, without direct hardware access.
 - `adapters`: mock devices, bounded Pi HTTP executor, Pi action service, and macOS Chrome media control.
 - `eventlog`: validated JSONL events, run metadata, privacy redaction, and summary; see [LOGGING_SCHEMA.md](LOGGING_SCHEMA.md).

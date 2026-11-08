@@ -21,7 +21,7 @@ from sleep_aware.adapters import (
 from sleep_aware.capture import OpenCVCameraSource
 from sleep_aware.config import settings
 from sleep_aware.control import Action, ClosedLoopPolicy, Intention
-from sleep_aware.detection import TemporalDrowsinessDetector
+from sleep_aware.detection import AdaptiveEarDetector, TemporalDrowsinessDetector
 from sleep_aware.eventlog import JsonlEventLogger, RunMetadata, git_revision, new_run_id
 from sleep_aware.eventlog.mock_run import run_mock
 from sleep_aware.pipeline import BaselinePipeline, Frame, create_landmark_processor
@@ -91,7 +91,30 @@ def _parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument("--log-dir", type=Path, default=Path(settings.log_dir))
-    parser.add_argument("--ear-threshold", type=float, default=settings.ear_threshold)
+    parser.add_argument(
+        "--detector",
+        choices=("b0", "b1"),
+        default="b0",
+        help="B0 fixed EAR or B1 guided personal-baseline EAR",
+    )
+    parser.add_argument(
+        "--ear-threshold",
+        type=float,
+        default=settings.ear_threshold,
+        help="Fixed EAR threshold for B0 only",
+    )
+    parser.add_argument(
+        "--calibration-samples",
+        type=int,
+        default=90,
+        help="B1-only valid open-eye EAR samples before detection (default: 90)",
+    )
+    parser.add_argument(
+        "--adaptive-multiplier",
+        type=float,
+        default=0.75,
+        help="B1-only threshold fraction of personal median EAR (default: 0.75)",
+    )
     parser.add_argument("--camera-index", type=int, default=settings.camera_index)
     parser.add_argument(
         "--max-frames",
@@ -206,20 +229,39 @@ def _close_pipeline(pipeline: BaselinePipeline, policy: ClosedLoopPolicy) -> Non
 
 def run_camera(args: argparse.Namespace) -> Path:
     """Run the real camera pipeline and return the structured log path."""
-    detector = TemporalDrowsinessDetector(
-        ear_threshold=args.ear_threshold,
-        drowsy_seconds=settings.drowsy_seconds,
-        recovery_seconds=settings.recovery_seconds,
-    )
+    if args.detector == "b1":
+        detector = AdaptiveEarDetector(
+            multiplier=args.adaptive_multiplier,
+            minimum_samples=args.calibration_samples,
+            drowsy_seconds=settings.drowsy_seconds,
+            recovery_seconds=settings.recovery_seconds,
+        )
+        detector_config = {
+            "adaptive_multiplier": detector.multiplier,
+            "calibration_samples": detector.minimum_samples,
+            "calibration_protocol": "guided-open-eyes",
+        }
+        print(
+            f"B1 calibration: keep eyes normally open for "
+            f"{detector.minimum_samples} valid face frames.",
+            file=sys.stderr,
+        )
+    else:
+        detector = TemporalDrowsinessDetector(
+            ear_threshold=args.ear_threshold,
+            drowsy_seconds=settings.drowsy_seconds,
+            recovery_seconds=settings.recovery_seconds,
+        )
+        detector_config = {"ear_threshold": detector.ear_threshold}
     commit, dirty = git_revision(Path(__file__).resolve().parent)
     metadata = RunMetadata(
         run_id=new_run_id(),
         intention=Intention(args.intention),
-        detector_name="B0-fixed-ear",
+        detector_name="B1-adaptive-ear" if args.detector == "b1" else "B0-fixed-ear",
         detector_version="0.1.0",
-        config_version="cli-camera-v1",
+        config_version="cli-camera-b1-v1" if args.detector == "b1" else "cli-camera-v1",
         detector_config={
-            "ear_threshold": detector.ear_threshold,
+            **detector_config,
             "drowsy_seconds": detector.drowsy_seconds,
             "recovery_seconds": detector.recovery_seconds,
             "source": "camera",
@@ -276,6 +318,12 @@ def run_camera(args: argparse.Namespace) -> Path:
                 pass
         finally:
             _close_pipeline(pipeline, policy)
+        if isinstance(detector, AdaptiveEarDetector) and not detector.ready:
+            raise RuntimeError(
+                "Adaptive EAR calibration incomplete: "
+                f"{detector.calibration_sample_count}/{detector.minimum_samples} "
+                "valid open-eye samples"
+            )
         return logger.path
 
 
@@ -289,6 +337,9 @@ def main(argv: list[str] | None = None) -> int:
                 args.log_dir,
                 Intention(args.intention),
                 failing_action=None,
+                detector_stage=args.detector,
+                calibration_samples=args.calibration_samples,
+                adaptive_multiplier=args.adaptive_multiplier,
             )
         else:
             with _cleanup_on_termination():

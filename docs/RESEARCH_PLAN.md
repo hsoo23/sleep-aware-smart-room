@@ -40,6 +40,11 @@ Evaluate every stage independently:
 
 Freeze development parameters before subject-independent testing.
 
+B1 is connected to the software pipeline for guided calibration and mock runs.
+This is an implementation result, not evidence of improved detection accuracy.
+See [PHASE3_PREPARATION.md](PHASE3_PREPARATION.md) for the pilot protocol and
+the remaining B0–B3 experimental dependencies.
+
 ## Phase 4 - Dataset protocol checklist
 
 - Participants and consent procedure

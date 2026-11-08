@@ -15,7 +15,8 @@ from sleep_aware.detection import DrowsinessState
 
 from .privacy import redact
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
+SUPPORTED_SCHEMA_VERSIONS = frozenset({"1.0", SCHEMA_VERSION})
 
 RUN_STATUSES = ("completed", "failed")
 
@@ -95,9 +96,14 @@ _ENUM_VALUES: dict[str, frozenset[str]] = {
 _NON_NEGATIVE = frozenset(
     {"inference_latency_ms", "control_latency_ms", "end_to_end_latency_ms", "latency_ms"}
 )
-_DETECTOR_CONFIG_KEYS = frozenset(
+_V1_0_CONFIG_KEYS = frozenset(
     {"ear_threshold", "drowsy_seconds", "recovery_seconds", "source", "action_mode"}
 )
+_DETECTOR_CONFIG_KEYS = {
+    "1.0": _V1_0_CONFIG_KEYS,
+    SCHEMA_VERSION: _V1_0_CONFIG_KEYS
+    | {"adaptive_multiplier", "calibration_samples", "calibration_protocol"},
+}
 
 
 def _check_type(value: Any, allowed: tuple[type, ...]) -> bool:
@@ -140,7 +146,7 @@ def validate_record(record: Mapping[str, Any]) -> None:
 
     problems = _check_fields(record, spec, record_type)
     version = record.get("schema_version")
-    if version != SCHEMA_VERSION:
+    if not isinstance(version, str) or version not in SUPPORTED_SCHEMA_VERSIONS:
         problems.append(f"{record_type}: unsupported schema_version {version!r}")
     if record_type == "frame" and isinstance(record.get("actions"), list):
         for index, action in enumerate(record["actions"]):
@@ -158,7 +164,12 @@ def validate_record(record: Mapping[str, Any]) -> None:
                     problems.append(f"{where}: failed action requires failure_reason")
     if record_type == "run_start" and isinstance(record.get("detector_config"), dict):
         config = record["detector_config"]
-        unknown = sorted(set(config) - _DETECTOR_CONFIG_KEYS)
+        allowed = (
+            _DETECTOR_CONFIG_KEYS.get(version, _V1_0_CONFIG_KEYS)
+            if isinstance(version, str)
+            else _V1_0_CONFIG_KEYS
+        )
+        unknown = sorted(set(config) - allowed)
         if unknown:
             problems.append(f"run_start: unsupported detector_config keys {unknown!r}")
         for key, value in config.items():

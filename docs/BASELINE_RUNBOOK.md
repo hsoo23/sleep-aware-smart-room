@@ -1,5 +1,8 @@
 # Fixed-EAR Baseline Runbook
 
+For the B1 guided Adaptive EAR pilot, see
+[PHASE3_PREPARATION.md](PHASE3_PREPARATION.md). B0 remains the default detector.
+
 ## Purpose and scope
 
 This runbook covers the Phase 2 B0 baseline. It distinguishes software-only checks, development-host camera/Chrome observations, and physical Raspberry Pi validation. A green CI run or mock trace does not establish camera, GPIO, relay, buzzer, or complete end-to-end operation.
